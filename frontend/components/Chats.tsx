@@ -3,26 +3,31 @@ import { useState } from "react";
 import ContactList from "./ContactList";
 import ChatScreen from "./ChatScreen";
 import RequestStatus from "./RequestStatus";
+import { UserSummary } from "./types";
 
-export default function Chats({ contacts }: { contacts: any }) {
-  const [selectedContact, setSelectedContact] = useState<any>(null);
+export default function Chats({ contacts }: { contacts: UserSummary[] }) {
+  const [selectedContact, setSelectedContact] = useState<UserSummary | null>(
+    null
+  );
   const [isFriend, setIsFriend] = useState<boolean>(false);
 
-  const handleContactSelect = (contact: any, friend: boolean) => {
+  const handleContactSelect = (contact: UserSummary, friend: boolean) => {
     setSelectedContact(contact);
     setIsFriend(friend);
   };
 
   return (
-    <Box maxWidth="80%" margin="auto" pt="10vh">
-      <Stack direction="row" height="80vh">
+    <Box sx={{ maxWidth: "80%", mx: "auto", pt: "10vh" }}>
+      <Stack direction="row" sx={{ height: "80vh" }}>
         <Box
-          flex="1"
-          border="1px solid"
-          minWidth="250px"
-          borderColor="msgBg.main"
-          display="flex"
-          flexDirection="column"
+          sx={{
+            flex: 1,
+            minWidth: "250px",
+            display: "flex",
+            flexDirection: "column",
+            border: "1px solid",
+            borderColor: "msgBg.main",
+          }}
         >
           <ContactList
             contacts={contacts}
@@ -30,11 +35,13 @@ export default function Chats({ contacts }: { contacts: any }) {
           />
         </Box>
         <Box
-          flex="3"
-          borderTop="1px solid "
-          borderRight="1px solid "
-          borderBottom="1px solid "
-          borderColor="msgBg.main"
+          sx={{
+            flex: 3,
+            borderTop: "1px solid",
+            borderRight: "1px solid",
+            borderBottom: "1px solid",
+            borderColor: "msgBg.main",
+          }}
         >
           {selectedContact && isFriend ? (
             <ChatScreen
@@ -48,12 +55,14 @@ export default function Chats({ contacts }: { contacts: any }) {
             />
           ) : (
             <Box
-              display="flex"
-              flex="3"
-              flexDirection="column"
-              alignItems="center"
-              justifyContent="center"
-              color="primary.light"
+              sx={{
+                display: "flex",
+                height: "100%",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "primary.light",
+              }}
             >
               <Typography variant="h6">Start making friends</Typography>
               <Typography variant="body1">

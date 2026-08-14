@@ -2,15 +2,16 @@ import { Box, Button, Typography } from "@mui/material";
 import axios from "axios";
 import { useEffect, useState } from "react";
 import { acceptRequest, rejectRequest } from "./api";
+import { UserSummary } from "./types";
 
 export default function RequestStatus({
   contact,
   onAccept,
 }: {
-  contact: any;
-  onAccept: (contact: any, friend: boolean) => void;
+  contact: UserSummary;
+  onAccept: (contact: UserSummary, friend: boolean) => void;
 }) {
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useState<"" | "Received" | "Sent">("");
 
   useEffect(() => {
     axios
@@ -23,7 +24,7 @@ export default function RequestStatus({
         }
       )
       .then((resp) => {
-        if (resp.data.data == true) {
+        if (resp.data.data === true) {
           setStatus("Received");
         } else {
           axios
@@ -36,7 +37,7 @@ export default function RequestStatus({
               }
             )
             .then((resp) => {
-              if (resp.data.data == true) {
+              if (resp.data.data === true) {
                 setStatus("Sent");
               } else {
                 setStatus("");
@@ -64,7 +65,7 @@ export default function RequestStatus({
         }
       )
       .then((resp) => {
-        if (resp.data.data == "Sent") {
+        if (resp.data.data === "Sent") {
           setStatus("Sent");
         }
       })
@@ -72,27 +73,30 @@ export default function RequestStatus({
         console.log(err);
       });
   }
+
   return (
-    <Box display="flex" flexDirection="column" flex="1" height="80vh">
-      <Box minHeight={30} bgcolor="msgBg.main">
-        <Typography variant="h6" color="primary.light" p={1}>
+    <Box sx={{ display: "flex", flexDirection: "column", flex: 1, height: "80vh" }}>
+      <Box sx={{ minHeight: 30, bgcolor: "msgBg.main" }}>
+        <Typography variant="h6" color="primary.light" sx={{ p: 1 }}>
           {contact.Username}
         </Typography>
       </Box>
       <Box
-        display="flex"
-        alignItems="center"
-        justifyContent="center"
-        flex="1"
-        gap={3}
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flex: 1,
+          gap: 3,
+        }}
       >
-        {status == "Received" ? (
+        {status === "Received" ? (
           <>
             <Button
               variant="contained"
               sx={{
                 color: "primary.contrastText",
-                backgroundColor: "primary",
+                backgroundColor: "primary.main",
                 ":hover": {
                   color: "primary.light",
                 },
@@ -122,17 +126,18 @@ export default function RequestStatus({
               Reject
             </Button>
           </>
-        ) : status == "Sent" ? (
+        ) : status === "Sent" ? (
           <Typography
-            border="1px solid"
-            borderColor="msgBg.main"
-            borderRadius={1}
-            color="primary.light"
             sx={{
-              padding: "6px 14px",
+              border: "1px solid",
+              borderColor: "msgBg.main",
+              borderRadius: 1,
+              color: "primary.light",
+              px: 2,
+              py: 0.75,
               fontSize: "0.875rem",
               fontWeight: 500,
-              textTransform: "uppercase ",
+              textTransform: "uppercase",
             }}
           >
             Request Pending

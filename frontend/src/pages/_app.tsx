@@ -1,22 +1,20 @@
-import { Box, createTheme, Grid, styled, ThemeProvider } from "@mui/material";
+import { createTheme, styled, ThemeProvider } from "@mui/material";
 import type { AppProps } from "next/app";
 import Navbar from "../../components/Navbar";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
+import type {
+  PaletteColor,
+  PaletteColorOptions,
+} from "@mui/material/styles";
 
 declare module "@mui/material/styles" {
   interface Palette {
-    msgBg: Palette["primary"];
+    msgBg: PaletteColor;
   }
 
   interface PaletteOptions {
-    msgBg: PaletteOptions["primary"];
-  }
-}
-
-declare module "@mui/material/Button" {
-  interface ButtonPropsColorOverrides {
-    msgBg: true;
+    msgBg?: PaletteColorOptions;
   }
 }
 
@@ -64,7 +62,11 @@ export default function App({ Component, pageProps }: AppProps) {
     if (isProtectedRoute && !token) {
       router.push("/user/signin");
       setPushed(true);
-    } else if ((router.pathname == "/user/signin" || "/user/signup") && token) {
+    } else if (
+      (router.pathname === "/user/signin" ||
+        router.pathname === "/user/signup") &&
+      token
+    ) {
       router.push("/user/profile");
       setPushed(true);
     }

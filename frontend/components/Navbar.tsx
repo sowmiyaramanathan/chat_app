@@ -6,17 +6,13 @@ import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 
 export default function Navbar() {
-  const [token, setToken] = useState(false);
+  const [hasToken, setHasToken] = useState(false);
   const [value, setValue] = useState(0);
   const router = useRouter();
 
   useEffect(() => {
     const token = localStorage.getItem("token");
-    if (!token) {
-      setToken(false);
-    } else {
-      setToken(true);
-    }
+    setHasToken(Boolean(token));
 
     const paths = token
       ? ["/user/profile", "/user/chats", "/user/requests"]
@@ -29,7 +25,7 @@ export default function Navbar() {
   }, [router.pathname]);
 
   const handleChange = (event: React.SyntheticEvent, newValue: number) => {
-    const paths = token
+    const paths = hasToken
       ? ["/user/profile", "/user/chats", "/user/requests"]
       : ["/", "/user/signup", "/user/signin"];
 
@@ -38,34 +34,32 @@ export default function Navbar() {
   };
 
   return (
-    <>
-      <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
-        <Tabs
-          value={value}
-          onChange={handleChange}
-          aria-label="basic tabs example"
-          centered
-          sx={{
-            "& .MuiTabs-indicator": {
-              backgroundColor: "primary.light",
+    <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
+      <Tabs
+        value={value}
+        onChange={handleChange}
+        aria-label="basic tabs example"
+        centered
+        sx={{
+          "& .MuiTabs-indicator": {
+            backgroundColor: "primary.light",
+          },
+          "& .MuiTab-root": {
+            color: "primary.contrastText",
+            "&.Mui-selected": {
+              color: "primary.light",
             },
-            "& .MuiTab-root": {
-              color: "primary.contrastText",
-              "&.Mui-selected": {
-                color: "primary.light",
-              },
-            },
-          }}
-        >
-          {token && <Tab label="Profile" />}
-          {token && <Tab label="Chats" />}
-          {token && <Tab label="Requests" />}
+          },
+        }}
+      >
+        {hasToken && <Tab label="Profile" />}
+        {hasToken && <Tab label="Chats" />}
+        {hasToken && <Tab label="Requests" />}
 
-          {!token && <Tab label="Home" />}
-          {!token && <Tab label="Sign Up " />}
-          {!token && <Tab label="Sign In" />}
-        </Tabs>
-      </Box>
-    </>
+        {!hasToken && <Tab label="Home" />}
+        {!hasToken && <Tab label="Sign Up " />}
+        {!hasToken && <Tab label="Sign In" />}
+      </Tabs>
+    </Box>
   );
 }

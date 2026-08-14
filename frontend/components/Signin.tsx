@@ -56,9 +56,7 @@ export default function Signin() {
       {({ values, errors, touched, handleChange, handleSubmit }) => {
         return (
           <form onSubmit={handleSubmit}>
-            <Stack
-              sx={{ gap: 2, maxWidth: "50vh", margin: "auto", pt: "20vh" }}
-            >
+            <Stack sx={{ gap: 2, maxWidth: "50vh", margin: "auto", pt: "20vh" }}>
               <CustomTextField
                 id="username"
                 label="Username"
@@ -79,22 +77,24 @@ export default function Signin() {
                 onChange={handleChange}
                 error={touched.password && Boolean(errors.password)}
                 helperText={touched.password && errors.password}
-                InputProps={{
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton
-                        aria-label="toggle password visibility"
-                        onClick={handleClickShowPassword}
-                        edge="end"
-                        sx={{ color: "msgBg.main" }}
-                      >
-                        {showPassword ? <VisibilityOff /> : <Visibility />}
-                      </IconButton>
-                    </InputAdornment>
-                  ),
+                slotProps={{
+                  input: {
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          aria-label="toggle password visibility"
+                          onClick={handleClickShowPassword}
+                          edge="end"
+                          sx={{ color: "msgBg.main" }}
+                        >
+                          {showPassword ? <VisibilityOff /> : <Visibility />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  },
                 }}
               />
-              <Stack direction="row" justifyContent="space-around" gap="2">
+              <Stack direction="row" sx={{justifyContent: "space-around", gap: 2}}>
                 <Button
                   variant="outlined"
                   color="primary"
@@ -116,7 +116,7 @@ export default function Signin() {
                   type="submit"
                   sx={{
                     color: "primary.contrastText",
-                    backgroundColor: "primary",
+                    backgroundColor: "primary.main",
                     ":hover": {
                       color: "primary.light",
                     },

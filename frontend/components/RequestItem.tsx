@@ -1,13 +1,14 @@
 import { Box, Typography, Button } from "@mui/material";
+import { FriendRequest } from "./types";
 
 export default function RequestItem({
   request,
   onAccept,
   onReject,
 }: {
-  request: any;
-  onAccept: (id: any) => void;
-  onReject: (id: any) => void;
+  request: FriendRequest;
+  onAccept: (id: number) => void;
+  onReject: (id: number) => void;
 }) {
   return (
     <Box sx={{ display: "flex", p: 2, justifyContent: "space-around" }}>
@@ -35,7 +36,7 @@ export default function RequestItem({
           variant="contained"
           sx={{
             color: "primary.contrastText",
-            backgroundColor: "primary",
+            backgroundColor: "primary.main",
             ":hover": {
               color: "primary.light",
             },

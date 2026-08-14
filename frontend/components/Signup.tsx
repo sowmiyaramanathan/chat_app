@@ -1,9 +1,9 @@
 import { Button, IconButton, InputAdornment, Stack } from "@mui/material";
 import axios from "axios";
-import { Formik, FormikProps } from "formik";
+import { Formik } from "formik";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
 import { useRouter } from "next/router";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import HowToRegIcon from "@mui/icons-material/HowToReg";
 import CancelIcon from "@mui/icons-material/Cancel";
 import * as Yup from "yup";
@@ -74,9 +74,7 @@ export default function Signup() {
       {({ values, errors, touched, handleChange, handleSubmit }) => {
         return (
           <form onSubmit={handleSubmit}>
-            <Stack
-              sx={{ gap: 2, maxWidth: "50vh", margin: "auto", pt: "20vh" }}
-            >
+            <Stack sx={{ gap: 2, maxWidth: "50vh", margin: "auto", pt: "20vh" }}>
               <CustomTextField
                 id="name"
                 label="Name"
@@ -113,19 +111,21 @@ export default function Signup() {
                 onChange={handleChange}
                 error={touched.password && Boolean(errors.password)}
                 helperText={touched.password && errors.password}
-                InputProps={{
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton
-                        aria-label="toggle password visibility"
-                        onClick={handleClickShowPassword}
-                        edge="end"
-                        sx={{ color: "msgBg.main" }}
-                      >
-                        {showPassword ? <VisibilityOff /> : <Visibility />}
-                      </IconButton>
-                    </InputAdornment>
-                  ),
+                slotProps={{
+                  input: {
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          aria-label="toggle password visibility"
+                          onClick={handleClickShowPassword}
+                          edge="end"
+                          sx={{ color: "msgBg.main" }}
+                        >
+                          {showPassword ? <VisibilityOff /> : <Visibility />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  },
                 }}
               />
               <CustomTextField
@@ -139,26 +139,28 @@ export default function Signup() {
                   touched.confirm_password && Boolean(errors.confirm_password)
                 }
                 helperText={touched.confirm_password && errors.confirm_password}
-                InputProps={{
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton
-                        aria-label="toggle password visibility"
-                        onClick={handleClickShowConfirmPassword}
-                        edge="end"
-                        sx={{ color: "msgBg.main" }}
-                      >
-                        {showConfirmPassword ? (
-                          <VisibilityOff />
-                        ) : (
-                          <Visibility />
-                        )}
-                      </IconButton>
-                    </InputAdornment>
-                  ),
+                slotProps={{
+                  input: {
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          aria-label="toggle password visibility"
+                          onClick={handleClickShowConfirmPassword}
+                          edge="end"
+                          sx={{ color: "msgBg.main" }}
+                        >
+                          {showConfirmPassword ? (
+                            <VisibilityOff />
+                          ) : (
+                            <Visibility />
+                          )}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  },
                 }}
               />
-              <Stack direction="row" justifyContent="space-evenly" spacing="2">
+              <Stack direction="row" sx={{justifyContent: "space-evenly"}}  spacing={2}>
                 <Button
                   variant="outlined"
                   sx={{
@@ -179,7 +181,7 @@ export default function Signup() {
                   type="submit"
                   sx={{
                     color: "primary.contrastText",
-                    backgroundColor: "primary",
+                    backgroundColor: "primary.main",
                     ":hover": {
                       color: "primary.light",
                     },

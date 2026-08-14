@@ -10,12 +10,6 @@ export default function Home() {
     });
   }
 
-  function signin() {
-    router.push({
-      pathname: "/user/signin",
-    });
-  }
-
   return (
     <Box
       sx={{
@@ -26,7 +20,7 @@ export default function Home() {
         flexDirection: "column",
       }}
     >
-      <Typography color="primary.light" marginBottom={2}>
+      <Typography color="primary.light" sx={{ mb: 2 }}>
         Mini Chat Application
       </Typography>
       <Button

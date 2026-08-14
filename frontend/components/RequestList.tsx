@@ -2,9 +2,10 @@ import { Box, Typography } from "@mui/material";
 import RequestItem from "./RequestItem";
 import { useCallback, useEffect, useState } from "react";
 import { acceptRequest, fetchRequests, rejectRequest } from "./api";
+import { FriendRequest } from "./types";
 
 export default function RequestList() {
-  const [requests, setRequests] = useState([]);
+  const [requests, setRequests] = useState<FriendRequest[]>([]);
 
   const refreshRequests = useCallback(() => {
     fetchRequests()
@@ -37,8 +38,8 @@ export default function RequestList() {
   }, [refreshRequests]);
 
   return (
-    <Box pt="10vh" maxWidth="80%" margin="auto">
-      {requests.length == 0 ? (
+    <Box sx={{ pt: "10vh", maxWidth: "80%", mx: "auto" }}>
+      {requests.length === 0 ? (
         <Box
           sx={{
             display: "flex",
@@ -56,12 +57,14 @@ export default function RequestList() {
         </Box>
       ) : (
         <Box
-          border="1px solid"
-          minWidth="250px"
-          borderColor="msgBg.main"
-          height="80vh"
+          sx={{
+            border: "1px solid",
+            minWidth: "250px",
+            borderColor: "msgBg.main",
+            height: "80vh",
+          }}
         >
-          {requests.map((request: any) => (
+          {requests.map((request) => (
             <RequestItem
               key={request.FromUserID}
               request={request}

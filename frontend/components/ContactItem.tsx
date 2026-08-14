@@ -1,12 +1,13 @@
 import { Box, Typography } from "@mui/material";
 import axios from "axios";
+import { UserSummary } from "./types";
 
 export default function ContactItem({
   contact,
   onSelect,
 }: {
-  contact: any;
-  onSelect: (contact: any, friend: boolean) => void;
+  contact: UserSummary;
+  onSelect: (contact: UserSummary, friend: boolean) => void;
 }) {
   const handleClick = () => {
     axios
@@ -19,7 +20,7 @@ export default function ContactItem({
         }
       )
       .then((resp) => {
-        if (resp.data.data == true) {
+        if (resp.data.data === true) {
           onSelect(contact, true);
         } else {
           onSelect(contact, false);

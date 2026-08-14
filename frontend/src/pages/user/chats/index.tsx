@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import Chats from "../../../../components/Chats";
+import { UserSummary } from "../../../../components/types";
 
 export default function chats() {
-  const [contacts, setContacts] = useState([]);
+  const [contacts, setContacts] = useState<UserSummary[]>([]);
 
   useEffect(() => {
     const token =

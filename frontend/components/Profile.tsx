@@ -10,23 +10,11 @@ function signout() {
 
 export default function Profile({ name }: { name: string }) {
   return (
-    <>
-      <Box
-        display="flex"
-        alignItems="center"
-        flexDirection="column"
-        pt={5}
-        gap={3}
-      >
-        <Typography color="primary.light"> Welcome {name} </Typography>
-        <Button
-          variant="contained"
-          onClick={signout}
-          startIcon={<LogoutIcon />}
-        >
-          Sign out
-        </Button>
-      </Box>
-    </>
+    <Box sx={{ display: "flex", alignItems: "center", flexDirection: "column", pt: 5, gap: 3 }}>
+      <Typography color="primary.light"> Welcome {name} </Typography>
+      <Button variant="contained" onClick={signout} startIcon={<LogoutIcon />}>
+        Sign out
+      </Button>
+    </Box>
   );
 }
