@@ -1,49 +1,13 @@
-import { createTheme, styled, ThemeProvider } from "@mui/material";
+import { styled, ThemeProvider } from "@mui/material";
 import type { AppProps } from "next/app";
 import Navbar from "../../components/Navbar";
+import { theme } from "../../components/theme";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
-import type {
-  PaletteColor,
-  PaletteColorOptions,
-} from "@mui/material/styles";
-
-declare module "@mui/material/styles" {
-  interface Palette {
-    msgBg: PaletteColor;
-  }
-
-  interface PaletteOptions {
-    msgBg?: PaletteColorOptions;
-  }
-}
-
-const theme = createTheme({
-  palette: {
-    primary: {
-      //Buttons
-      main: "#1f316f",
-      light: "#f9dbba",
-      contrastText: "#fff",
-    },
-    secondary: {
-      //bg
-      main: "#1a4870",
-    },
-    msgBg: {
-      //msgBg
-      main: "#5b99c2",
-      contrastText: "#000",
-    },
-    // error: {
-    //   main: "red",
-    // },
-  },
-});
 
 const BackgroundContainer = styled("div")(({ theme }) => ({
   minHeight: "100vh",
-  backgroundColor: theme.palette.secondary.main,
+  background: `linear-gradient(160deg, ${theme.palette.secondary.light} 0%, ${theme.palette.background.default} 45%, ${theme.palette.msgBg.light} 100%)`,
 }));
 
 const ProtectedRoutes = ["/user/profile", "/user/chats", "/user/requests"];

@@ -22,7 +22,7 @@ func InitializeRoutes(c controllers.Controller) *chi.Mux {
 		AllowCredentials: true,
 	}))
 
-	r.HandleFunc("/ws", websocket.HandleConnection)
+	r.HandleFunc("/ws/{userID}", websocket.HandleConnection)
 
 	r.Route("/user", func(r chi.Router) {
 		r.Post("/register", c.RegisterUser)

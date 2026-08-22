@@ -8,6 +8,8 @@ import HowToRegIcon from "@mui/icons-material/HowToReg";
 import CancelIcon from "@mui/icons-material/Cancel";
 import * as Yup from "yup";
 import { CustomTextField } from "./CustomComponets";
+import { STRINGS } from "./keys";
+import { containedButton, outlinedButton, panelCard } from "./styles";
 
 export default function Signup() {
   const router = useRouter();
@@ -19,19 +21,19 @@ export default function Signup() {
     setShowConfirmPassword((prev) => !prev);
 
   const validationSchema = Yup.object().shape({
-    name: Yup.string().required("Name is required"),
-    username: Yup.string().required("Username is required"),
+    name: Yup.string().required(STRINGS.validation.nameRequired),
+    username: Yup.string().required(STRINGS.validation.usernameRequired),
     mobile_number: Yup.string()
       .matches(/^[6-9]\d{9}$/, {
-        message: "Please enter valid number.",
+        message: STRINGS.validation.mobileInvalid,
       })
-      .required("Mobile number is required"),
+      .required(STRINGS.validation.mobileRequired),
     password: Yup.string()
-      .min(8, "Enter minimum 8 characters")
-      .required("Password is required"),
+      .min(8, STRINGS.validation.passwordMin)
+      .required(STRINGS.validation.passwordRequired),
     confirm_password: Yup.string()
-      .oneOf([Yup.ref("password")], "Passwords must match")
-      .required("Confirm Password is required"),
+      .oneOf([Yup.ref("password")], STRINGS.validation.passwordsMustMatch)
+      .required(STRINGS.validation.confirmPasswordRequired),
   });
 
   return (
@@ -61,10 +63,9 @@ export default function Signup() {
           .catch((error) => {
             const message = error.response.data.message;
             if (message == "Username") {
-              console.log("In");
-              setFieldError("username", "Username already exists");
+              setFieldError("username", STRINGS.errors.usernameExists);
             } else if (message == "Number") {
-              setFieldError("mobile_number", "Mobile number already exists");
+              setFieldError("mobile_number", STRINGS.errors.mobileExists);
             } else {
               console.log(error);
             }
@@ -74,10 +75,20 @@ export default function Signup() {
       {({ values, errors, touched, handleChange, handleSubmit }) => {
         return (
           <form onSubmit={handleSubmit}>
-            <Stack sx={{ gap: 2, maxWidth: "50vh", margin: "auto", pt: "20vh" }}>
+            <Stack
+              sx={{
+                ...panelCard,
+                gap: 2,
+                maxWidth: 420,
+                width: "100%",
+                mx: "auto",
+                p: { xs: 3, sm: 4 },
+                mt: { xs: 4, md: 6 },
+              }}
+            >
               <CustomTextField
                 id="name"
-                label="Name"
+                label={STRINGS.auth.name}
                 value={values.name}
                 variant="outlined"
                 onChange={handleChange}
@@ -86,7 +97,7 @@ export default function Signup() {
               />
               <CustomTextField
                 id="username"
-                label="Username"
+                label={STRINGS.auth.username}
                 value={values.username}
                 variant="outlined"
                 onChange={handleChange}
@@ -95,7 +106,7 @@ export default function Signup() {
               />
               <CustomTextField
                 id="mobile_number"
-                label="Mobile Number"
+                label={STRINGS.auth.mobileNumber}
                 value={values.mobile_number}
                 variant="outlined"
                 onChange={handleChange}
@@ -104,7 +115,7 @@ export default function Signup() {
               />
               <CustomTextField
                 id="password"
-                label="Password"
+                label={STRINGS.auth.password}
                 value={values.password}
                 variant="outlined"
                 type={showPassword ? "text" : "password"}
@@ -116,10 +127,10 @@ export default function Signup() {
                     endAdornment: (
                       <InputAdornment position="end">
                         <IconButton
-                          aria-label="toggle password visibility"
+                          aria-label={STRINGS.auth.togglePasswordVisibility}
                           onClick={handleClickShowPassword}
                           edge="end"
-                          sx={{ color: "msgBg.main" }}
+                          sx={{ color: "primary.main" }}
                         >
                           {showPassword ? <VisibilityOff /> : <Visibility />}
                         </IconButton>
@@ -130,7 +141,7 @@ export default function Signup() {
               />
               <CustomTextField
                 id="confirm_password"
-                label="Confirm Password"
+                label={STRINGS.auth.confirmPassword}
                 value={values.confirm_password}
                 type={showConfirmPassword ? "text" : "password"}
                 variant="outlined"
@@ -144,10 +155,10 @@ export default function Signup() {
                     endAdornment: (
                       <InputAdornment position="end">
                         <IconButton
-                          aria-label="toggle password visibility"
+                          aria-label={STRINGS.auth.togglePasswordVisibility}
                           onClick={handleClickShowConfirmPassword}
                           edge="end"
-                          sx={{ color: "msgBg.main" }}
+                          sx={{ color: "primary.main" }}
                         >
                           {showConfirmPassword ? (
                             <VisibilityOff />
@@ -160,35 +171,22 @@ export default function Signup() {
                   },
                 }}
               />
-              <Stack direction="row" sx={{justifyContent: "space-evenly"}}  spacing={2}>
+              <Stack direction="row" sx={{ justifyContent: "space-between", gap: 2, pt: 1 }}>
                 <Button
                   variant="outlined"
-                  sx={{
-                    color: "primary.light",
-                    borderColor: "msgBg.main",
-                    ":hover": {
-                      color: "primary.contrastText",
-                      borderColor: "primary.light",
-                    },
-                  }}
+                  sx={outlinedButton}
                   startIcon={<CancelIcon />}
                   onClick={() => router.back()}
                 >
-                  Cancel
+                  {STRINGS.auth.cancel}
                 </Button>
                 <Button
                   variant="contained"
                   type="submit"
-                  sx={{
-                    color: "primary.contrastText",
-                    backgroundColor: "primary.main",
-                    ":hover": {
-                      color: "primary.light",
-                    },
-                  }}
+                  sx={containedButton}
                   startIcon={<HowToRegIcon />}
                 >
-                  Sign up
+                  {STRINGS.auth.signUp}
                 </Button>
               </Stack>
             </Stack>

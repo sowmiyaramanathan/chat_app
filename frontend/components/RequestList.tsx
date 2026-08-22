@@ -1,36 +1,39 @@
-import { Box, Typography } from "@mui/material";
+import { Alert, Box, CircularProgress, Typography } from "@mui/material";
+import PersonAddOutlinedIcon from "@mui/icons-material/PersonAddOutlined";
 import RequestItem from "./RequestItem";
 import { useCallback, useEffect, useState } from "react";
 import { acceptRequest, fetchRequests, rejectRequest } from "./api";
 import { FriendRequest } from "./types";
+import { STRINGS } from "./keys";
+import { emptyState, pageContainer, panelCard, panelHeader } from "./styles";
 
 export default function RequestList() {
   const [requests, setRequests] = useState<FriendRequest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const refreshRequests = useCallback(() => {
+    setLoading(true);
+    setError(null);
     fetchRequests()
       .then((res) => setRequests(res.data))
-      .catch((err: any) => console.log(err));
+      .catch((err: unknown) => {
+        console.log(err);
+        setError(STRINGS.errors.loadRequests);
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   const handleAccept = (id: number) => {
     acceptRequest(id)
-      .then(() => {
-        refreshRequests();
-      })
-      .catch((err) => {
-        console.log(err);
-      });
+      .then(() => refreshRequests())
+      .catch((err) => console.log(err));
   };
 
   const handleReject = (id: number) => {
     rejectRequest(id)
-      .then(() => {
-        refreshRequests();
-      })
-      .catch((err) => {
-        console.log(err);
-      });
+      .then(() => refreshRequests())
+      .catch((err) => console.log(err));
   };
 
   useEffect(() => {
@@ -38,42 +41,66 @@ export default function RequestList() {
   }, [refreshRequests]);
 
   return (
-    <Box sx={{ pt: "10vh", maxWidth: "80%", mx: "auto" }}>
-      {requests.length === 0 ? (
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            border: "1px solid",
-            minWidth: "250px",
-            borderColor: "msgBg.main",
-            height: "80vh",
-          }}
-        >
-          <Typography variant="h5" color="primary.light">
-            No requests to accept
+    <Box sx={pageContainer}>
+      <Box
+        sx={{
+          ...panelCard,
+          height: { xs: "auto", md: "78vh" },
+          minHeight: { md: 520 },
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <Box sx={panelHeader}>
+          <Typography variant="h6" color="primary.main" sx={{ fontWeight: 700 }}>
+            {STRINGS.requests.pageTitle}
           </Typography>
         </Box>
-      ) : (
-        <Box
-          sx={{
-            border: "1px solid",
-            minWidth: "250px",
-            borderColor: "msgBg.main",
-            height: "80vh",
-          }}
-        >
-          {requests.map((request) => (
-            <RequestItem
-              key={request.FromUserID}
-              request={request}
-              onAccept={handleAccept}
-              onReject={handleReject}
+
+        {loading ? (
+          <Box
+            sx={{
+              flex: 1,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 2,
+              p: 4,
+            }}
+          >
+            <CircularProgress size={28} sx={{ color: "primary.main" }} />
+          </Box>
+        ) : error ? (
+          <Box sx={{ p: 3 }}>
+            <Alert severity="error" sx={{ borderRadius: 2 }}>
+              {error}
+            </Alert>
+          </Box>
+        ) : requests.length === 0 ? (
+          <Box sx={emptyState}>
+            <PersonAddOutlinedIcon
+              sx={{ fontSize: 48, color: "accent.main", mb: 1 }}
             />
-          ))}
-        </Box>
-      )}
+            <Typography variant="h6" color="primary.main">
+              {STRINGS.requests.emptyTitle}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 360 }}>
+              {STRINGS.requests.emptySubtitle}
+            </Typography>
+          </Box>
+        ) : (
+          <Box sx={{ flex: 1, overflow: "auto" }}>
+            {requests.map((request) => (
+              <RequestItem
+                key={request.FromUserID}
+                request={request}
+                onAccept={handleAccept}
+                onReject={handleReject}
+              />
+            ))}
+          </Box>
+        )}
+      </Box>
     </Box>
   );
 }

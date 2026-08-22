@@ -1,41 +1,51 @@
 import { Box, Button, Typography } from "@mui/material";
 import { useRouter } from "next/router";
+import { STRINGS } from "./keys";
+import { containedButton, panelCard } from "./styles";
 
 export default function Home() {
   const router = useRouter();
 
   function signup() {
-    router.push({
-      pathname: "/user/signup",
-    });
+    router.push({ pathname: "/user/signup" });
   }
 
   return (
     <Box
       sx={{
         display: "flex",
-        height: "80vh",
+        minHeight: { xs: "70vh", md: "75vh" },
         justifyContent: "center",
         alignItems: "center",
-        flexDirection: "column",
+        px: 2,
       }}
     >
-      <Typography color="primary.light" sx={{ mb: 2 }}>
-        Mini Chat Application
-      </Typography>
-      <Button
-        variant="contained"
-        onClick={signup}
+      <Box
         sx={{
-          color: "primary.contrastText",
-          ":hover": {
-            backgroundColor: "primary.main",
-            color: "primary.light",
-          },
+          ...panelCard,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          textAlign: "center",
+          gap: 2,
+          p: { xs: 4, md: 6 },
+          maxWidth: 480,
         }}
       >
-        Signup Now
-      </Button>
+        <Typography
+          variant="h4"
+          color="primary.main"
+          sx={{ fontWeight: 700 }}
+        >
+          {STRINGS.home.heading}
+        </Typography>
+        <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 360 }}>
+          {STRINGS.home.tagline}
+        </Typography>
+        <Button variant="contained" onClick={signup} sx={containedButton}>
+          {STRINGS.home.cta}
+        </Button>
+      </Box>
     </Box>
   );
 }

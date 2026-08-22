@@ -3,12 +3,11 @@ package services
 import (
 	e "backend/entities"
 	"errors"
-	"html"
 	"strings"
 )
 
 func prepareMessage(message *e.Message) {
-	message.Message = html.EscapeString(strings.TrimSpace(message.Message))
+	message.Message = strings.TrimSpace(message.Message)
 }
 
 func (s *service) CreateMessage(message *e.Message) error {

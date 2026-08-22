@@ -9,6 +9,8 @@ import { Visibility, VisibilityOff } from "@mui/icons-material";
 import * as Yup from "yup";
 import { setToken, setPvtKey } from "../token/token";
 import { CustomTextField } from "./CustomComponets";
+import { STRINGS } from "./keys";
+import { containedButton, outlinedButton, panelCard } from "./styles";
 
 export default function Signin() {
   const router = useRouter();
@@ -17,10 +19,10 @@ export default function Signin() {
   const handleClickShowPassword = () => setShowPassword((prev) => !prev);
 
   const validationSchema = Yup.object().shape({
-    username: Yup.string().required("Username is required"),
+    username: Yup.string().required(STRINGS.validation.usernameRequired),
     password: Yup.string()
-      .min(8, "Enter minimum 8 characters")
-      .required("Password is required"),
+      .min(8, STRINGS.validation.passwordMin)
+      .required(STRINGS.validation.passwordRequired),
   });
 
   return (
@@ -42,11 +44,12 @@ export default function Signin() {
             router.push("/user/profile");
           })
           .catch((error) => {
+            console.log(error)
             const message = error.response.data.message;
             if (message == "Username") {
-              setFieldError("username", "Username does not exist");
+              setFieldError("username", STRINGS.errors.usernameNotFound);
             } else if (message == "Password") {
-              setFieldError("password", "Wrong Password. Try again");
+              setFieldError("password", STRINGS.errors.wrongPassword);
             } else {
               console.log(error);
             }
@@ -56,10 +59,20 @@ export default function Signin() {
       {({ values, errors, touched, handleChange, handleSubmit }) => {
         return (
           <form onSubmit={handleSubmit}>
-            <Stack sx={{ gap: 2, maxWidth: "50vh", margin: "auto", pt: "20vh" }}>
+            <Stack
+              sx={{
+                ...panelCard,
+                gap: 2,
+                maxWidth: 420,
+                width: "100%",
+                mx: "auto",
+                p: { xs: 3, sm: 4 },
+                mt: { xs: 4, md: 8 },
+              }}
+            >
               <CustomTextField
                 id="username"
-                label="Username"
+                label={STRINGS.auth.username}
                 value={values.username}
                 variant="outlined"
                 type="text"
@@ -70,7 +83,7 @@ export default function Signin() {
 
               <CustomTextField
                 id="password"
-                label="Password"
+                label={STRINGS.auth.password}
                 value={values.password}
                 variant="outlined"
                 type={showPassword ? "text" : "password"}
@@ -82,10 +95,10 @@ export default function Signin() {
                     endAdornment: (
                       <InputAdornment position="end">
                         <IconButton
-                          aria-label="toggle password visibility"
+                          aria-label={STRINGS.auth.togglePasswordVisibility}
                           onClick={handleClickShowPassword}
                           edge="end"
-                          sx={{ color: "msgBg.main" }}
+                          sx={{ color: "primary.main" }}
                         >
                           {showPassword ? <VisibilityOff /> : <Visibility />}
                         </IconButton>
@@ -94,36 +107,22 @@ export default function Signin() {
                   },
                 }}
               />
-              <Stack direction="row" sx={{justifyContent: "space-around", gap: 2}}>
+              <Stack direction="row" sx={{ justifyContent: "space-between", gap: 2, pt: 1 }}>
                 <Button
                   variant="outlined"
-                  color="primary"
-                  sx={{
-                    color: "primary.light",
-                    borderColor: "msgBg.main",
-                    ":hover": {
-                      color: "primary.contrastText",
-                      borderColor: "primary.light",
-                    },
-                  }}
+                  sx={outlinedButton}
                   startIcon={<CancelIcon />}
                   onClick={() => router.back()}
                 >
-                  Cancel
+                  {STRINGS.auth.cancel}
                 </Button>
                 <Button
                   variant="contained"
                   type="submit"
-                  sx={{
-                    color: "primary.contrastText",
-                    backgroundColor: "primary.main",
-                    ":hover": {
-                      color: "primary.light",
-                    },
-                  }}
+                  sx={containedButton}
                   startIcon={<LoginIcon />}
                 >
-                  Sign In
+                  {STRINGS.auth.signIn}
                 </Button>
               </Stack>
             </Stack>
