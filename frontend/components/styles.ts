@@ -2,7 +2,7 @@ import type { SxProps, Theme } from "@mui/material";
 
 export const panelCard: SxProps<Theme> = {
   bgcolor: "surface.main",
-  borderRadius: 3,
+  borderRadius: 2.5,
   boxShadow: "0 4px 24px rgba(92, 122, 94, 0.12)",
   border: "1px solid",
   borderColor: "secondary.dark",

@@ -11,6 +11,7 @@ import (
 	"backend/models"
 	"backend/routes"
 	"backend/services"
+	"backend/services/websocket"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -38,7 +39,9 @@ func ConnectDatabase() *gorm.DB {
 func Run() {
 	Db := ConnectDatabase()
 	m := models.New(Db)
-	s := services.New(m)
+	hub := websocket.NewHub()
+	ws := websocket.New(hub)
+	s := services.New(m, ws)
 	c := controllers.New(s)
 	r := routes.InitializeRoutes(c)
 

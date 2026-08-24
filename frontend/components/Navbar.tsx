@@ -42,7 +42,7 @@ export default function Navbar() {
         mx: { xs: 2, sm: 3 },
         mt: 2,
         mb: 1,
-        borderRadius: 2,
+        borderRadius: 1,
       }}
     >
       <Tabs
@@ -57,7 +57,7 @@ export default function Navbar() {
           "& .MuiTabs-indicator": {
             backgroundColor: "accent.main",
             height: 3,
-            borderRadius: 2,
+            borderRadius: 1,
           },
           "& .MuiTab-root": {
             color: "text.secondary",

@@ -3,10 +3,14 @@ package services
 import (
 	e "backend/entities"
 	"backend/models"
+	cs "backend/services/websocket"
+
+	"github.com/gorilla/websocket"
 )
 
 type service struct {
-	m models.Model
+	m  models.Model
+	ws cs.ChatSocket
 }
 
 type Service interface {
@@ -28,10 +32,14 @@ type Service interface {
 	RejecttFriendRequest(userAID, userBID uint64) error
 	CheckIsFriendRequestSent(userAID, userBID uint64) (bool, error)
 	CheckIsFriendRequestReceived(userAID, UserBID uint64) (bool, error)
+
+	// websocket
+	RunWebsocket(conn *websocket.Conn, connUserID string)
 }
 
-func New(m models.Model) Service {
+func New(m models.Model, ws cs.ChatSocket) Service {
 	return &service{
-		m: m,
+		m:  m,
+		ws: ws,
 	}
 }

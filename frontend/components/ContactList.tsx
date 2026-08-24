@@ -15,8 +15,8 @@ export default function ContactList({
 }) {
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      <Box sx={panelHeader}>
-        <Typography variant="subtitle1" color="primary.main" sx={{ fontWeight: 700 }}>
+      <Box sx={{ ...panelHeader, display: "flex", justifyContent: "center" }}>
+        <Typography variant="subtitle1" color="primary.main" sx={{ fontWeight: 700, textAlign: "center", width: "100%" }}        >
           {STRINGS.chat.contactsTitle}
         </Typography>
       </Box>

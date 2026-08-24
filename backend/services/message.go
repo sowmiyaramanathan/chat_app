@@ -4,6 +4,8 @@ import (
 	e "backend/entities"
 	"errors"
 	"strings"
+
+	"github.com/gorilla/websocket"
 )
 
 func prepareMessage(message *e.Message) {
@@ -28,4 +30,8 @@ func (s *service) GetMyMessages(fromId, toId uint64) (*[]e.Messages, error) {
 	}
 
 	return messages, nil
+}
+
+func (s *service) RunWebsocket(conn *websocket.Conn, connUserID string) {
+	s.ws.RunWebsocket(conn, connUserID)
 }

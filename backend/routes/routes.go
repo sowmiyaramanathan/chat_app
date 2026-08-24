@@ -3,7 +3,6 @@ package routes
 import (
 	"backend/auth"
 	"backend/controllers"
-	"backend/websocket"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
@@ -22,7 +21,7 @@ func InitializeRoutes(c controllers.Controller) *chi.Mux {
 		AllowCredentials: true,
 	}))
 
-	r.HandleFunc("/ws/{userID}", websocket.HandleConnection)
+	r.HandleFunc("/ws/{userID}", c.HandleConnection)
 
 	r.Route("/user", func(r chi.Router) {
 		r.Post("/register", c.RegisterUser)

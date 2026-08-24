@@ -20,13 +20,40 @@ function ChatScreen({ toID, username }: { toID: number; username: string }) {
   const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const ws = useRef<WebSocket | null>(null);
+  const currentUserIDRef = useRef<number | null>(null);
+
+  const getUserIDFromToken = (token: string) => {
+    const parts = token.split(".");
+    if (parts.length !== 3) {
+      throw new Error(STRINGS.errors.invalidToken);
+    }
+
+    const payload = parts[1];
+    const normalizedPayload = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const paddedPayload = normalizedPayload.padEnd(
+      normalizedPayload.length + ((4 - (normalizedPayload.length % 4)) % 4),
+      "="
+    );
+    const jsonString = atob(paddedPayload);
+    const payloadObj = JSON.parse(jsonString);
+
+    return Number(payloadObj.userID ?? payloadObj.sub);
+  };
 
   useEffect(() => {
     const token =
       typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    const currentUserID = token ? getUserIDFromToken(token) : null;
+    currentUserIDRef.current = currentUserID;
 
     setLoading(true);
     setError(null);
+
+    if (!token || currentUserID === null || Number.isNaN(currentUserID)) {
+      setError(STRINGS.errors.invalidToken);
+      setLoading(false);
+      return;
+    }
 
     axios
       .get(`http://localhost:8000/message/view?to_id=${toID}`, {
@@ -45,7 +72,9 @@ function ChatScreen({ toID, username }: { toID: number; username: string }) {
         setLoading(false);
       });
 
-    ws.current = new WebSocket(`ws://localhost:8000/ws/${toID}`);
+    ws.current = new WebSocket(
+      `ws://localhost:8000/ws/${currentUserID}?token=${token}`
+    );
 
     ws.current.onmessage = (event) => {
       const message = JSON.parse(event.data) as ChatMessage;
@@ -63,24 +92,17 @@ function ChatScreen({ toID, username }: { toID: number; username: string }) {
     }
   }, [messages]);
 
-  const getUserIDFromToken = (token: string) => {
-    const parts = token.split(".");
-    if (parts.length !== 3) {
-      throw new Error(STRINGS.errors.invalidToken);
-    }
-
-    const payload = parts[1];
-    const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
-    const jsonString = atob(base64);
-    const payloadObj = JSON.parse(jsonString);
-
-    return Number(payloadObj.sub ?? payloadObj.userID);
-  };
-
   const handleSendMessage = async () => {
     if (newMessage.trim() === "") return;
 
     const token = localStorage.getItem("token");
+    const currentUserID =
+      currentUserIDRef.current ?? (token ? getUserIDFromToken(token) : null);
+
+    if (!token || currentUserID === null || Number.isNaN(currentUserID)) {
+      setError(STRINGS.errors.invalidToken);
+      return;
+    }
 
     await axios.post(
       `http://localhost:8000/message/create?to_id=${toID}`,
@@ -88,21 +110,14 @@ function ChatScreen({ toID, username }: { toID: number; username: string }) {
       { headers: { Authorization: `Bearer ${token}` } }
     );
 
-    if (token) {
-      try {
-        const userID = getUserIDFromToken(token);
-        if (ws.current) {
-          ws.current.send(
-            JSON.stringify({
-              Message: newMessage,
-              FromUserID: userID,
-              ToUserID: toID,
-            })
-          );
-        }
-      } catch (err) {
-        console.error("Failed to extract user ID:", err);
-      }
+    if (ws.current) {
+      ws.current.send(
+        JSON.stringify({
+          Message: newMessage,
+          FromUserID: currentUserID,
+          ToUserID: toID,
+        })
+      );
     }
 
     setNewMessage("");

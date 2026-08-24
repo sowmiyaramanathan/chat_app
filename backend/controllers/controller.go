@@ -29,6 +29,9 @@ type Controller interface {
 	RejectFriendRequest(w http.ResponseWriter, r *http.Request)
 	IsFriendRequestSent(w http.ResponseWriter, r *http.Request)
 	IsRequestReceived(w http.ResponseWriter, r *http.Request)
+
+	// websocket handler
+	HandleConnection(w http.ResponseWriter, r *http.Request)
 }
 
 func New(s services.Service) Controller {
