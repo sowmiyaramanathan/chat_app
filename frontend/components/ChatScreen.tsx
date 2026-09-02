@@ -110,16 +110,6 @@ function ChatScreen({ toID, username }: { toID: number; username: string }) {
       { headers: { Authorization: `Bearer ${token}` } }
     );
 
-    if (ws.current) {
-      ws.current.send(
-        JSON.stringify({
-          Message: newMessage,
-          FromUserID: currentUserID,
-          ToUserID: toID,
-        })
-      );
-    }
-
     setNewMessage("");
   };
 
