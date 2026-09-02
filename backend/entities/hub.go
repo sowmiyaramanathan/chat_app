@@ -3,6 +3,7 @@ package entities
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -10,8 +11,8 @@ import (
 // WebSocketMessage represents the message structure expected from/to the client
 type WebSocketMessage struct {
 	Message    string `json:"Message"`
-	FromUserID int    `json:"FromUserID"`
-	ToUserID   int    `json:"ToUserID"`
+	FromUserID uint64 `json:"FromUserID"`
+	ToUserID   uint64 `json:"ToUserID"`
 }
 
 // DirectMessage represents a routed direct 1-to-1 message in the Hub
@@ -19,6 +20,7 @@ type DirectMessage struct {
 	RecipientID string
 	SenderID    string
 	Payload     []byte
+	EnqueuedAt  time.Time
 }
 
 // Client represents a single connected user's WebSocket connection

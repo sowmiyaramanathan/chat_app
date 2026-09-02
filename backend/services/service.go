@@ -10,7 +10,7 @@ import (
 
 type service struct {
 	m  models.Model
-	ws cs.ChatSocket
+	cs cs.ChatSocket
 }
 
 type Service interface {
@@ -35,11 +35,12 @@ type Service interface {
 
 	// websocket
 	RunWebsocket(conn *websocket.Conn, connUserID string)
+	PublishMessage(message *e.Message) error
 }
 
-func New(m models.Model, ws cs.ChatSocket) Service {
+func New(m models.Model, cs cs.ChatSocket) Service {
 	return &service{
 		m:  m,
-		ws: ws,
+		cs: cs,
 	}
 }

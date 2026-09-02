@@ -5,9 +5,11 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"backend/controllers"
 	e "backend/entities"
+	"backend/metrics"
 	"backend/models"
 	"backend/routes"
 	"backend/services"
@@ -32,18 +34,46 @@ func ConnectDatabase() *gorm.DB {
 	} else {
 		log.Printf("We are connected to %s database", Dbdriver)
 	}
-	Db.Debug().AutoMigrate(&e.User{}, &e.Message{}, &e.Friends{})
+	Db.AutoMigrate(&e.User{}, &e.Message{}, &e.Friends{})
 	return Db
 }
 
 func Run() {
 	Db := ConnectDatabase()
+	sqlDB, err := Db.DB()
+	if err != nil {
+		log.Fatal(err)
+	}
+	sqlDB.SetMaxOpenConns(100)
+
+	go func() {
+		ticker := time.NewTicker(1 * time.Second)
+		defer ticker.Stop()
+
+		for range ticker.C {
+			stats := sqlDB.Stats()
+
+			log.Printf(
+				"DB_STATS open=%d in_use=%d idle=%d wait_count=%d wait_duration=%s",
+				stats.OpenConnections, stats.InUse, stats.Idle, stats.WaitCount, stats.WaitDuration,
+			)
+		}
+	}()
+	metrics.StartRuntimeSampler(sqlDB)
+
 	m := models.New(Db)
 	hub := websocket.NewHub()
 	ws := websocket.New(hub)
 	s := services.New(m, ws)
 	c := controllers.New(s)
 	r := routes.InitializeRoutes(c)
+	go func() {
+		ticker := time.NewTicker(1 * time.Second)
+		defer ticker.Stop()
+		for range ticker.C {
+			log.Printf("METRICS_SNAPSHOT\n%s", metrics.Snapshot())
+		}
+	}()
 
 	fmt.Println("\nListening to port 8000")
 	log.Fatal(http.ListenAndServe(":8000", r))

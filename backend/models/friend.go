@@ -7,7 +7,7 @@ import (
 func (m model) IsFriend(userAID, userBID uint64) (bool, error) {
 	var count int64
 
-	err := m.Db.Debug().
+	err := m.Db.
 		Model(&e.Friends{}).Select("friends.friend_status").
 		Where("((from_user_id = ? and to_user_id = ?) or (from_user_id = ? and to_user_id = ?)) and friend_status = 'accepted'", userAID, userBID, userBID, userAID).
 		Count(&count).Error
@@ -22,7 +22,7 @@ func (m model) IsFriend(userAID, userBID uint64) (bool, error) {
 func (m *model) CreateRequest(userAID, userBID uint64) error {
 	request := &e.Friends{FromUserID: userAID, ToUserID: userBID, FriendStatus: "pending"}
 
-	err := m.Db.Debug().Create(request).Error
+	err := m.Db.Create(request).Error
 	if err != nil {
 		return err
 	}
@@ -32,7 +32,7 @@ func (m *model) CreateRequest(userAID, userBID uint64) error {
 func (m *model) GetMyRequests(userID uint64) ([]e.Requests, error) {
 	requests := []e.Requests{}
 
-	err := m.Db.Debug().
+	err := m.Db.
 		Model(&e.Friends{}).
 		Select("friends.from_user_id", "users.username").
 		Joins("INNER JOIN users ON friends.from_user_id = users.id").
@@ -45,7 +45,7 @@ func (m *model) GetMyRequests(userID uint64) ([]e.Requests, error) {
 }
 
 func (m *model) AcceptRequest(userAID, userBID uint64) error {
-	err := m.Db.Debug().Model(&e.Friends{}).Where("from_user_id = ? AND to_user_id = ?", userAID, userBID).Update("friend_status", "accepted").Error
+	err := m.Db.Model(&e.Friends{}).Where("from_user_id = ? AND to_user_id = ?", userAID, userBID).Update("friend_status", "accepted").Error
 	if err != nil {
 		return err
 	}
@@ -53,7 +53,7 @@ func (m *model) AcceptRequest(userAID, userBID uint64) error {
 }
 
 func (m *model) RejectRequest(userAID, userBID uint64) error {
-	err := m.Db.Debug().Model(&e.Friends{}).Where("from_user_id = ? AND to_user_id = ?", userAID, userBID).Update("friend_status", "rejected").Error
+	err := m.Db.Model(&e.Friends{}).Where("from_user_id = ? AND to_user_id = ?", userAID, userBID).Update("friend_status", "rejected").Error
 	if err != nil {
 		return err
 	}
@@ -63,7 +63,7 @@ func (m *model) RejectRequest(userAID, userBID uint64) error {
 func (m *model) IsRequestSent(userAID, userBID uint64) (bool, error) {
 	var count int64
 
-	err := m.Db.Debug().Model(e.Friends{}).
+	err := m.Db.Model(e.Friends{}).
 		Select("friends.id", "users.username").
 		Joins("INNER JOIN users ON friends.from_user_id = users.id").
 		Where("friends.from_user_id = ? AND friends.to_user_id = ? AND friend_status = 'pending'", userAID, userBID).Count(&count).Error
@@ -79,7 +79,7 @@ func (m *model) IsRequestSent(userAID, userBID uint64) (bool, error) {
 func (m *model) IsRequestReceived(userAID, userBID uint64) (bool, error) {
 	var count int64
 
-	err := m.Db.Debug().Model(e.Friends{}).
+	err := m.Db.Model(e.Friends{}).
 		Select("friends.id", "users.username").
 		Joins("INNER JOIN users ON friends.from_user_id = users.id").
 		Where("friends.from_user_id = ? AND friends.to_user_id = ? AND friend_status = 'pending'", userAID, userBID).Count(&count).Error

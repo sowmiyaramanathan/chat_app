@@ -3,6 +3,7 @@ package routes
 import (
 	"backend/auth"
 	"backend/controllers"
+	"backend/metrics"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
@@ -23,6 +24,7 @@ func InitializeRoutes(c controllers.Controller) *chi.Mux {
 
 	r.HandleFunc("/ws/{userID}", c.HandleConnection)
 
+	r.Get("/metrics", metrics.Handler)
 	r.Route("/user", func(r chi.Router) {
 		r.Post("/register", c.RegisterUser)
 		r.Post("/login", c.LoginUser)
@@ -38,6 +40,7 @@ func InitializeRoutes(c controllers.Controller) *chi.Mux {
 
 	r.Route("/message", func(r chi.Router) {
 		r.Group(func(r chi.Router) {
+			r.Use(metrics.HTTPMiddleware)
 			r.Use(jwtauth.Verifier(auth.TokenAuth))
 			r.Use(jwtauth.Authenticator(auth.TokenAuth))
 			r.Post("/create", c.CreateMessage)

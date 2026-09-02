@@ -14,6 +14,7 @@ type chatsocket struct {
 type ChatSocket interface {
 	Run()
 	RunWebsocket(conn *websocket.Conn, connUserID string)
+	PublishMessage(message *entities.Message) error
 }
 
 func New(hub *entities.Hub) ChatSocket {

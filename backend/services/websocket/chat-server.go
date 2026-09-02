@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"backend/entities"
+	"backend/metrics"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -45,9 +46,11 @@ func (cs *chatsocket) Run() {
 			if oldClient, exists := cs.hub.Clients[client.ID]; exists {
 				oldClient.Conn.Close()
 				delete(cs.hub.Clients, client.ID)
+				metrics.ConnectionClosed()
 			}
 			cs.hub.Clients[client.ID] = client
 			cs.hub.Mu.Unlock()
+			metrics.ConnectionOpened()
 			log.Printf("User %s registered (total connected: %d)", client.ID, len(cs.hub.Clients))
 
 		case client := <-cs.hub.UnRegister:
@@ -55,11 +58,17 @@ func (cs *chatsocket) Run() {
 			if registeredClient, ok := cs.hub.Clients[client.ID]; ok && registeredClient == client {
 				delete(cs.hub.Clients, client.ID)
 				close(client.Send)
+				metrics.ConnectionClosed()
 				log.Printf("User %s unregistered (total connected: %d)", client.ID, len(cs.hub.Clients))
 			}
 			cs.hub.Mu.Unlock()
 
 		case dm := <-cs.hub.DirectMessage:
+			routeStart := time.Now()
+			metrics.IncMessagesRouted()
+			if !dm.EnqueuedAt.IsZero() {
+				metrics.Observe("websocket.hub_queue_wait", time.Since(dm.EnqueuedAt))
+			}
 			cs.hub.Mu.RLock()
 			// 1. Deliver to the recipient if they are online
 			recipient, recipientOnline := cs.hub.Clients[dm.RecipientID]
@@ -68,6 +77,7 @@ func (cs *chatsocket) Run() {
 				case recipient.Send <- dm.Payload:
 					// Queued successfully
 				default:
+					metrics.IncBufferFull()
 					// Recipient buffer full, disconnect slow client
 					log.Printf("User %s send buffer full, disconnecting", dm.RecipientID)
 					go func(c *entities.Client) {
@@ -86,11 +96,13 @@ func (cs *chatsocket) Run() {
 					case sender.Send <- dm.Payload:
 						// Queued successfully
 					default:
+						metrics.IncBufferFull()
 						log.Printf("User %s (sender) buffer full", dm.SenderID)
 					}
 				}
 			}
 			cs.hub.Mu.RUnlock()
+			metrics.Observe("websocket.hub_route", time.Since(routeStart))
 		}
 	}
 }
@@ -145,6 +157,7 @@ func readPump(c *entities.Client) {
 			RecipientID: recipientKey,
 			SenderID:    senderKey,
 			Payload:     payload,
+			EnqueuedAt:  time.Now(),
 		}
 	}
 }
@@ -193,6 +206,26 @@ func writePump(c *entities.Client) {
 			}
 		}
 	}
+}
+
+func (cs *chatsocket) PublishMessage(message *entities.Message) error {
+	payload, err := json.Marshal(entities.WebSocketMessage{
+		Message:    message.Message,
+		FromUserID: message.FromUserID,
+		ToUserID:   message.ToUserID,
+	})
+	if err != nil {
+		return err
+	}
+
+	cs.hub.DirectMessage <- entities.DirectMessage{
+		RecipientID: fmt.Sprintf("%d", message.ToUserID),
+		SenderID:    fmt.Sprintf("%d", message.FromUserID),
+		Payload:     payload,
+		EnqueuedAt:  time.Now(),
+	}
+
+	return nil
 }
 
 // HandleConnection handles new incoming HTTP connections and upgrades them to WebSockets

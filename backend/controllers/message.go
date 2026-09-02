@@ -32,7 +32,7 @@ func (c *controller) CreateMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Write([]byte("Message Created"))
+	w.Write([]byte("Message Sent"))
 }
 
 func (c *controller) GetMessages(w http.ResponseWriter, r *http.Request) {
