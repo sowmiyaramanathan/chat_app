@@ -15,14 +15,18 @@ export default function ContactList({
 }) {
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      <Box sx={{ ...panelHeader, display: "flex", justifyContent: "center" }}>
-        <Typography variant="subtitle1" color="primary.main" sx={{ fontWeight: 700, textAlign: "center", width: "100%" }}        >
+      <Box sx={{ ...panelHeader, display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 1 }}>
+        <Typography variant="h6" color="text.primary" sx={{ fontWeight: 700 }}>
           {STRINGS.chat.contactsTitle}
+        </Typography>
+        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
+          {contacts.length} {contacts.length === 1 ? "person" : "people"}
         </Typography>
       </Box>
       <Box
         sx={{
           flex: 1,
+          minHeight: 0,
           overflow: "auto",
           "&::-webkit-scrollbar": { width: 6 },
           "&::-webkit-scrollbar-thumb": {

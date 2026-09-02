@@ -2,6 +2,7 @@ package services
 
 import (
 	e "backend/entities"
+	p "backend/entities/packet"
 	"backend/models"
 	cs "backend/services/websocket"
 
@@ -17,17 +18,17 @@ type Service interface {
 	//user
 	CreateUser(user *e.User) error
 	LoginUser(username, password string) (uint, error)
-	GetAllUsers(username string) (*[]e.Users, error)
+	GetAllUsers(username string) ([]*p.Users, error)
 	GetPublicKey(userID uint64) (string, error)
 
 	//message
 	CreateMessage(message *e.Message) error
-	GetMyMessages(fromId, toId uint64) (*[]e.Messages, error)
+	GetMyMessages(fromId, toId uint64, limit int, cursor *p.Cursor) ([]*p.Messages, error)
 
 	//friends
 	CheckIsFriend(userAID, userBID uint64) (bool, error)
 	CreateFriendRequest(userAID, userBID uint64) error
-	GetFriendRequests(userID uint64) ([]e.Requests, error)
+	GetFriendRequests(userID uint64) ([]*p.Requests, error)
 	AcceptFriendRequest(userAID, userBID uint64) error
 	RejecttFriendRequest(userAID, userBID uint64) error
 	CheckIsFriendRequestSent(userAID, userBID uint64) (bool, error)

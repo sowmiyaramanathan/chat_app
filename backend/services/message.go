@@ -2,6 +2,7 @@ package services
 
 import (
 	e "backend/entities"
+	p "backend/entities/packet"
 	"backend/metrics"
 	"errors"
 	"fmt"
@@ -34,9 +35,8 @@ func (s *service) CreateMessage(message *e.Message) error {
 	return nil
 }
 
-func (s *service) GetMyMessages(fromId, toId uint64) (*[]e.Messages, error) {
-	messages, err := s.m.GetMyMessagesByFromToId(fromId, toId)
-
+func (s *service) GetMyMessages(fromId, toId uint64, limit int, cursor *p.Cursor) ([]*p.Messages, error) {
+	messages, err := s.m.GetMyMessagesByFromToId(fromId, toId, limit, cursor)
 	if err != nil {
 		return nil, errors.New("could not get messages")
 	}

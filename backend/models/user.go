@@ -1,6 +1,9 @@
 package models
 
-import e "backend/entities"
+import (
+	e "backend/entities"
+	p "backend/entities/packet"
+)
 
 func (m *model) SaveUser(user *e.User) (*e.User, error) {
 	err := m.Db.Create(user).Error
@@ -37,9 +40,9 @@ func (m *model) GetUserByMobilenumber(number string) (*e.User, error) {
 	return user, nil
 }
 
-func (m *model) GetUsers(username string) (*[]e.Users, error) {
-	users := &[]e.Users{}
-	err := m.Db.Model(&e.Users{}).Select("id", "username").Where("username != ?", username).Limit(100).Find(users).Error
+func (m *model) GetUsers(username string) ([]*p.Users, error) {
+	users := []*p.Users{}
+	err := m.Db.Model(&p.Users{}).Select("id", "username").Where("username != ?", username).Limit(100).Find(&users).Error
 	if err != nil {
 		return nil, err
 	}

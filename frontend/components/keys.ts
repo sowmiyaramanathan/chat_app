@@ -2,6 +2,7 @@ export const STRINGS = {
   app: {
     title: "Whisper Chat",
     metaKeywords: "chat message connect friends",
+    name: "whisper",
   },
   nav: {
     profile: "Profile",

@@ -1,7 +1,7 @@
 package services
 
 import (
-	e "backend/entities"
+	p "backend/entities/packet"
 	"errors"
 )
 
@@ -23,7 +23,7 @@ func (s *service) CreateFriendRequest(userAID, userBID uint64) error {
 	return nil
 }
 
-func (s *service) GetFriendRequests(userID uint64) ([]e.Requests, error) {
+func (s *service) GetFriendRequests(userID uint64) ([]*p.Requests, error) {
 	requests, err := s.m.GetMyRequests(userID)
 	if err != nil {
 		return nil, errors.New("could not get friend requests")

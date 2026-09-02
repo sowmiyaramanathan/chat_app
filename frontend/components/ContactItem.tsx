@@ -44,17 +44,18 @@ export default function ContactItem({
       tabIndex={0}
       aria-selected={isSelected}
       sx={{
-        px: 2.5,
-        py: 1.75,
+        px: 2,
+        py: 1.5,
         borderBottom: "1px solid",
-        borderColor: "secondary.light",
+        borderColor: "rgba(24, 50, 75, 0.08)",
         cursor: loading ? "wait" : "pointer",
         bgcolor: isSelected ? "secondary.light" : "transparent",
         borderLeft: "4px solid",
         borderLeftColor: isSelected ? "accent.main" : "transparent",
-        transition: "background-color 0.15s ease, border-color 0.15s ease",
+        transition: "background-color 160ms ease, border-color 160ms ease, transform 160ms ease",
         "&:hover": {
           bgcolor: isSelected ? "secondary.light" : "surface.dark",
+          transform: "translateX(3px)",
         },
       }}
       onClick={handleClick}
@@ -70,7 +71,7 @@ export default function ContactItem({
           sx={{
             width: 36,
             height: 36,
-            borderRadius: "50%",
+            borderRadius: "38% 62% 55% 45% / 52% 42% 58% 48%",
             bgcolor: isSelected ? "accent.light" : "msgBg.light",
             display: "flex",
             alignItems: "center",

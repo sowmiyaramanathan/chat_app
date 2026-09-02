@@ -2,6 +2,7 @@ package models
 
 import (
 	e "backend/entities"
+	p "backend/entities/packet"
 )
 
 func (m model) IsFriend(userAID, userBID uint64) (bool, error) {
@@ -29,8 +30,8 @@ func (m *model) CreateRequest(userAID, userBID uint64) error {
 	return nil
 }
 
-func (m *model) GetMyRequests(userID uint64) ([]e.Requests, error) {
-	requests := []e.Requests{}
+func (m *model) GetMyRequests(userID uint64) ([]*p.Requests, error) {
+	requests := []*p.Requests{}
 
 	err := m.Db.
 		Model(&e.Friends{}).

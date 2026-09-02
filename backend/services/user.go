@@ -2,6 +2,7 @@ package services
 
 import (
 	e "backend/entities"
+	p "backend/entities/packet"
 	"errors"
 	"fmt"
 	"html"
@@ -60,7 +61,7 @@ func (s *service) LoginUser(username, password string) (uint, error) {
 	return user.ID, nil
 }
 
-func (s *service) GetAllUsers(username string) (*[]e.Users, error) {
+func (s *service) GetAllUsers(username string) ([]*p.Users, error) {
 	users, err := s.m.GetUsers(username)
 	if err != nil {
 		return nil, err

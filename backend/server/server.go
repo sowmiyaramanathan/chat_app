@@ -17,6 +17,7 @@ import (
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 func ConnectDatabase() *gorm.DB {
@@ -28,7 +29,18 @@ func ConnectDatabase() *gorm.DB {
 	Dbdriver := os.Getenv("DB_DRIVER")
 
 	DBURL := fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=disable password=%s", Dbhost, Dbport, DbUser, Dbname, Dbpassword)
-	Db, err := gorm.Open(postgres.Open(DBURL), &gorm.Config{})
+
+	var logLevel logger.LogLevel
+
+	if os.Getenv("ENV") == "PROD" {
+		logLevel = logger.Warn
+	} else {
+		logLevel = logger.Info
+	}
+
+	Db, err := gorm.Open(postgres.Open(DBURL), &gorm.Config{
+		Logger: logger.Default.LogMode(logLevel),
+	})
 	if err != nil {
 		log.Fatalf("Cannot cannot to database %s, error occured - %s", Dbdriver, err)
 	} else {

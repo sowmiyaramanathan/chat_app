@@ -2,10 +2,10 @@ import type { SxProps, Theme } from "@mui/material";
 
 export const panelCard: SxProps<Theme> = {
   bgcolor: "surface.main",
-  borderRadius: 2.5,
-  boxShadow: "0 4px 24px rgba(92, 122, 94, 0.12)",
+  borderRadius: 2,
+  boxShadow: "0 10px 0 rgba(24, 50, 75, 0.08), 0 20px 40px rgba(24, 50, 75, 0.08)",
   border: "1px solid",
-  borderColor: "secondary.dark",
+  borderColor: "divider",
   overflow: "hidden",
 };
 
@@ -23,7 +23,7 @@ export const emptyState: SxProps<Theme> = {
   alignItems: "center",
   justifyContent: "center",
   textAlign: "center",
-  gap: 1.5,
+  gap: 1.25,
   p: 4,
   height: "100%",
   color: "text.secondary",
@@ -32,7 +32,7 @@ export const emptyState: SxProps<Theme> = {
 export const outlinedButton: SxProps<Theme> = {
   color: "primary.main",
   borderColor: "primary.main",
-  bgcolor: "surface.main",
+  bgcolor: "transparent",
   "&:hover": {
     bgcolor: "secondary.light",
     borderColor: "primary.dark",
@@ -49,8 +49,8 @@ export const containedButton: SxProps<Theme> = {
 
 export const panelHeader: SxProps<Theme> = {
   px: 2.5,
-  py: 1.75,
-  bgcolor: "secondary.light",
-  borderBottom: "1px solid",
-  borderColor: "secondary.dark",
+  py: 2,
+  bgcolor: "surface.dark",
+  borderBottom: "2px solid",
+  borderColor: "divider",
 };

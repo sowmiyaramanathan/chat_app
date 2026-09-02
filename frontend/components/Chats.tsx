@@ -24,7 +24,7 @@ export default function Chats({ contacts }: { contacts: UserSummary[] }) {
       <Stack
         direction={{ xs: "column", md: "row" }}
         spacing={2}
-        sx={{ height: { xs: "auto", md: "78vh" }, minHeight: { md: 520 } }}
+        sx={{ height: { xs: "auto", md: "78vh" }, minHeight: { md: 520 }, alignItems: "stretch" }}
       >
         <Box
           sx={{
@@ -32,6 +32,7 @@ export default function Chats({ contacts }: { contacts: UserSummary[] }) {
             flex: { xs: "none", md: "0 0 280px" },
             display: "flex",
             flexDirection: "column",
+            minHeight: 0,
             height: { xs: 280, md: "100%" },
           }}
         >

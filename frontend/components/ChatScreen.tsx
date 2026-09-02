@@ -6,10 +6,11 @@ import {
   Typography,
 } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
+import MoodRoundedIcon from "@mui/icons-material/MoodRounded";
 import { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import { MessageField } from "./CustomComponets";
-import { ChatMessage } from "./types";
+import { ChatMessage, ChatMessagesResponse } from "./types";
 import { STRINGS } from "./keys";
 import { panelHeader } from "./styles";
 
@@ -17,10 +18,47 @@ function ChatScreen({ toID, username }: { toID: number; username: string }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
   const ws = useRef<WebSocket | null>(null);
   const currentUserIDRef = useRef<number | null>(null);
+  const cursorRef = useRef("");
+  const shouldScrollToBottomRef = useRef(false);
+  const scrollImmediatelyRef = useRef(false);
+  const historyLoadedRef = useRef(false);
+  const pendingRealtimeMessagesRef = useRef<ChatMessage[]>([]);
+  const pageSize = 50;
+
+  const normalizeMessage = (message: ChatMessage): ChatMessage => ({
+    ...message,
+    ID: Number(message.ID ?? 0),
+    FromUserID: Number(message.FromUserID),
+    ToUserID: Number(message.ToUserID),
+  });
+
+  const appendRealtimeMessage = (message: ChatMessage) => {
+    const currentUserID = currentUserIDRef.current;
+    const belongsToConversation =
+      currentUserID !== null &&
+      ((message.FromUserID === currentUserID && message.ToUserID === toID) ||
+        (message.FromUserID === toID && message.ToUserID === currentUserID));
+
+    if (!belongsToConversation) return;
+
+    const container = messagesContainerRef.current;
+    const isNearBottom = container
+      ? container.scrollHeight - container.scrollTop - container.clientHeight < 80
+      : true;
+    shouldScrollToBottomRef.current = isNearBottom;
+    const normalizedMessage = normalizeMessage(message);
+    if (!historyLoadedRef.current) {
+      pendingRealtimeMessagesRef.current.push(normalizedMessage);
+      return;
+    }
+    setMessages((previous) => [...previous, normalizedMessage]);
+  };
 
   const getUserIDFromToken = (token: string) => {
     const parts = token.split(".");
@@ -55,21 +93,39 @@ function ChatScreen({ toID, username }: { toID: number; username: string }) {
       return;
     }
 
+    let cancelled = false;
+    cursorRef.current = "";
+    historyLoadedRef.current = false;
+    pendingRealtimeMessagesRef.current = [];
+    setMessages([]);
+    setHasMore(false);
+
     axios
-      .get(`http://localhost:8000/message/view?to_id=${toID}`, {
+      .get<ChatMessagesResponse>("http://localhost:8000/message/view", {
+        params: { to_id: toID, limit: pageSize },
         headers: {
           Authorization: token ? `Bearer ${token}` : "",
         },
       })
       .then((response) => {
-        setMessages(response.data);
+        if (cancelled) return;
+        const page = response.data;
+        const pageMessages = (page.Messages ?? []).map(normalizeMessage);
+        const pendingMessages = pendingRealtimeMessagesRef.current;
+        pendingRealtimeMessagesRef.current = [];
+        setMessages([...pageMessages.reverse(), ...pendingMessages]);
+        historyLoadedRef.current = true;
+        cursorRef.current = page.PageInfo?.EndCursor ?? "";
+        setHasMore(page.PageInfo?.HasNextPage ?? false);
+        shouldScrollToBottomRef.current = true;
+        scrollImmediatelyRef.current = true;
       })
-      .catch((err) => {
-        console.log(err.response);
+      .catch(() => {
+        if (cancelled) return;
         setError(STRINGS.errors.loadMessages);
       })
       .finally(() => {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       });
 
     ws.current = new WebSocket(
@@ -77,20 +133,81 @@ function ChatScreen({ toID, username }: { toID: number; username: string }) {
     );
 
     ws.current.onmessage = (event) => {
-      const message = JSON.parse(event.data) as ChatMessage;
-      setMessages((prevMessages) => [...prevMessages, message]);
+      for (const frame of String(event.data).split("\n")) {
+        try {
+          appendRealtimeMessage(JSON.parse(frame) as ChatMessage);
+        } catch {
+          // Ignore malformed frames without breaking the websocket listener.
+        }
+      }
     };
 
     return () => {
+      cancelled = true;
       ws.current?.close();
+      ws.current = null;
     };
   }, [toID]);
 
   useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
-    }
+    if (!shouldScrollToBottomRef.current) return;
+
+    const container = messagesContainerRef.current;
+    const scrollImmediately = scrollImmediatelyRef.current;
+    shouldScrollToBottomRef.current = false;
+    scrollImmediatelyRef.current = false;
+
+    requestAnimationFrame(() => {
+      if (!container) return;
+      if (scrollImmediately) {
+        container.scrollTop = container.scrollHeight;
+        return;
+      }
+      container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+    });
   }, [messages]);
+
+  const loadOlderMessages = async () => {
+    if (loadingOlder || !hasMore || !cursorRef.current) return;
+
+    const container = messagesContainerRef.current;
+    const previousHeight = container?.scrollHeight ?? 0;
+    const previousTop = container?.scrollTop ?? 0;
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    setLoadingOlder(true);
+    try {
+      const response = await axios.get<ChatMessagesResponse>(
+        "http://localhost:8000/message/view",
+        {
+          params: {
+            to_id: toID,
+            limit: pageSize,
+            cursor: cursorRef.current,
+          },
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      const page = response.data;
+      const olderMessages = (page.Messages ?? [])
+        .map(normalizeMessage)
+        .reverse();
+      setMessages((previous) => [...olderMessages, ...previous]);
+      cursorRef.current = page.PageInfo?.EndCursor ?? "";
+      setHasMore(page.PageInfo?.HasNextPage ?? false);
+
+      requestAnimationFrame(() => {
+        if (!container) return;
+        container.scrollTop = container.scrollHeight - previousHeight + previousTop;
+      });
+    } catch {
+      setError(STRINGS.errors.loadMessages);
+    } finally {
+      setLoadingOlder(false);
+    }
+  };
 
   const handleSendMessage = async () => {
     if (newMessage.trim() === "") return;
@@ -115,10 +232,17 @@ function ChatScreen({ toID, username }: { toID: number; username: string }) {
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", flex: 1, height: "100%" }}>
-      <Box sx={panelHeader}>
-        <Typography variant="h6" color="primary.main" sx={{ fontWeight: 700 }}>
-          {username}
-        </Typography>
+      <Box sx={{ ...panelHeader, display: "flex", alignItems: "center", gap: 1.25 }}>
+        <Box sx={{ position: "relative", display: "grid", placeItems: "center", width: 42, height: 42, borderRadius: "38% 62% 55% 45% / 52% 42% 58% 48%", bgcolor: "secondary.light", color: "primary.main", transform: "rotate(4deg)" }}>
+          <MoodRoundedIcon />
+          <Box sx={{ position: "absolute", width: 9, height: 9, right: -1, bottom: 1, borderRadius: "50%", bgcolor: "success.main", border: "2px solid", borderColor: "surface.main" }} />
+        </Box>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="h6" color="text.primary" sx={{ fontWeight: 700, lineHeight: 1.1, overflow: "hidden", textOverflow: "ellipsis" }}>
+            {username}
+          </Typography>
+          <Typography variant="caption" color="success.main" sx={{ fontWeight: 700 }}>online-ish</Typography>
+        </Box>
       </Box>
 
       <Box
@@ -129,6 +253,9 @@ function ChatScreen({ toID, username }: { toID: number; username: string }) {
           p: 2,
           overflow: "hidden",
           bgcolor: "surface.dark",
+          backgroundImage: (theme) => `radial-gradient(${theme.palette.secondary.main} 1px, transparent 1px)`,
+          backgroundSize: "22px 22px",
+          backgroundPosition: "3px 4px",
         }}
       >
         {loading ? (
@@ -154,8 +281,15 @@ function ChatScreen({ toID, username }: { toID: number; username: string }) {
           </Box>
         ) : (
           <Box
+            ref={messagesContainerRef}
+            onScroll={(event) => {
+              if (event.currentTarget.scrollTop <= 24) {
+                void loadOlderMessages();
+              }
+            }}
             sx={{
               flexGrow: 1,
+              minHeight: 0,
               overflow: "auto",
               display: "flex",
               flexDirection: "column",
@@ -167,6 +301,11 @@ function ChatScreen({ toID, username }: { toID: number; username: string }) {
               },
             }}
           >
+            {loadingOlder && (
+              <Box sx={{ display: "flex", justifyContent: "center", py: 1 }}>
+                <CircularProgress size={20} sx={{ color: "primary.main" }} />
+              </Box>
+            )}
             {messages.length === 0 ? (
               <Box
                 sx={{
@@ -184,11 +323,12 @@ function ChatScreen({ toID, username }: { toID: number; username: string }) {
               messages.map((message, index) => (
                 <Box
                   key={index}
-                  sx={{
-                    display: "flex",
-                    justifyContent:
-                      message.FromUserID === toID ? "flex-start" : "flex-end",
-                  }}
+                    sx={{
+                      display: "flex",
+                      justifyContent:
+                        message.FromUserID === toID ? "flex-start" : "flex-end",
+                      animation: "floatIn 220ms ease both",
+                    }}
                 >
                   <Typography
                     variant="body1"
@@ -203,10 +343,10 @@ function ChatScreen({ toID, username }: { toID: number; username: string }) {
                           ? "msgBg.contrastText"
                           : "primary.contrastText",
                       px: 2,
-                      py: 1,
-                      borderRadius: 3,
+                      py: 1.1,
+                      borderRadius: message.FromUserID === toID ? "6px 18px 18px 18px" : "18px 6px 18px 18px",
                       wordBreak: "break-word",
-                      boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
+                      boxShadow: "0 4px 0 rgba(24, 50, 75, 0.08)",
                     }}
                   >
                     {message.Message}
@@ -214,7 +354,6 @@ function ChatScreen({ toID, username }: { toID: number; username: string }) {
                 </Box>
               ))
             )}
-            <div ref={messagesEndRef} />
           </Box>
         )}
 
