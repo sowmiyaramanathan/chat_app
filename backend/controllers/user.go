@@ -1,33 +1,40 @@
 package controllers
 
 import (
+	"backend/apperrors"
 	"backend/auth"
 	e "backend/entities"
+	"backend/utils"
 	"encoding/json"
-	"fmt"
+	"errors"
+	"log/slog"
 	"net/http"
-	"strconv"
 )
 
 func (c *controller) RegisterUser(w http.ResponseWriter, r *http.Request) {
-	var user e.User
-	err := json.NewDecoder(r.Body).Decode(&user)
-	fmt.Println("body : ", r)
-	if err != nil {
-		http.Error(w, "Cannot Process your Request", http.StatusUnprocessableEntity)
+	if !c.bucket.Take(1) {
+		slog.Warn("rate limit exceeded", "method", r.Method, "path", r.URL.Path)
+		utils.WriteError(w, http.StatusTooManyRequests, "Too many requests")
 		return
 	}
 
-	err = c.s.CreateUser(&user)
+	var user e.User
+	err := json.NewDecoder(r.Body).Decode(&user)
 	if err != nil {
-		if err.Error() == "username" {
-			http.Error(w, `{"message": "Username"}`, http.StatusConflict)
+		utils.WriteError(w, http.StatusInternalServerError, "invalid json")
+		return
+	}
+
+	err = c.s.Chat.CreateUser(&user)
+	if err != nil {
+		if errors.Is(err, apperrors.ErrUserAlreadyExists) {
+			utils.WriteError(w, http.StatusConflict, "username")
 			return
-		} else if err.Error() == "mobile_number" {
-			http.Error(w, `{"message": "Number"}`, http.StatusConflict)
+		} else if errors.Is(err, apperrors.ErrMobileAlreadyExists) {
+			utils.WriteError(w, http.StatusConflict, "number")
 			return
 		} else {
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			utils.WriteError(w, http.StatusInternalServerError, "internal error")
 			return
 		}
 	}
@@ -36,31 +43,36 @@ func (c *controller) RegisterUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *controller) LoginUser(w http.ResponseWriter, r *http.Request) {
-	var user e.User
-	err := json.NewDecoder(r.Body).Decode(&user)
-	if err != nil {
-		http.Error(w, "Cannot Process your Request", http.StatusUnprocessableEntity)
+	if !c.bucket.Take(1) {
+		slog.Warn("rate limit exceeded", "method", r.Method, "path", r.URL.Path)
+		utils.WriteError(w, http.StatusTooManyRequests, "Too many requests")
 		return
 	}
 
-	userId, err := c.s.LoginUser(user.Username, user.Password)
+	var user e.User
+	err := json.NewDecoder(r.Body).Decode(&user)
 	if err != nil {
-		if err.Error() == "username" {
-			http.Error(w, `{"message": "Username"}`, http.StatusConflict)
+		utils.WriteError(w, http.StatusInternalServerError, "invalid json")
+		return
+	}
+
+	userId, err := c.s.Chat.LoginUser(user.UserName, user.Password)
+	if err != nil {
+		if errors.Is(err, apperrors.ErrUserNotFound) {
+			utils.WriteError(w, http.StatusConflict, "username")
 			return
-		} else if err.Error() == "wrong_password" {
-			http.Error(w, `{"message": "Password"}`, http.StatusConflict)
+		} else if errors.Is(err, apperrors.ErrInvalidCredentials) {
+			utils.WriteError(w, http.StatusConflict, "password")
 			return
 		} else {
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			utils.WriteError(w, http.StatusInternalServerError, "internal error")
 			return
 		}
 	}
 
-	tokenString := auth.CreateToken(userId, user.Username)
-
-	if tokenString == "" {
-		http.Error(w, "Precondition Failed", http.StatusPreconditionFailed)
+	tokenString, err := auth.CreateToken(userId, user.UserName)
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, "Failed to create token")
 		return
 	}
 
@@ -71,18 +83,35 @@ func (c *controller) LoginUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *controller) Profile(w http.ResponseWriter, r *http.Request) {
-	claims := auth.ExtractToken(r)
+	claims, err := auth.ExtractToken(r)
+	if err != nil {
+		if errors.Is(err, apperrors.ErrInvalidToken) {
+			utils.WriteError(w, http.StatusUnauthorized, "Unauthorized - claims missing")
+			return
+		}
+		utils.WriteError(w, http.StatusInternalServerError, "Failed to extract token")
+		return
+	}
+
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"name": claims.Username,
 	})
 }
 
 func (c *controller) GetAllUsers(w http.ResponseWriter, r *http.Request) {
-	claims := auth.ExtractToken(r)
-
-	users, err := c.s.GetAllUsers(claims.Username)
+	claims, err := auth.ExtractToken(r)
 	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		if errors.Is(err, apperrors.ErrInvalidToken) {
+			utils.WriteError(w, http.StatusUnauthorized, "Unauthorized - claims missing")
+			return
+		}
+		utils.WriteError(w, http.StatusInternalServerError, "Failed to extract token")
+		return
+	}
+
+	users, err := c.s.Chat.GetAllUsers(claims.Username)
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 
@@ -91,16 +120,15 @@ func (c *controller) GetAllUsers(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *controller) GetPublicKey(w http.ResponseWriter, r *http.Request) {
-	userIDString := r.URL.Query().Get("user_id")
-	userID, err := strconv.ParseUint(userIDString, 10, 64)
-	if err != nil {
-		http.Error(w, "Bad Request", http.StatusBadRequest)
+	userID := r.URL.Query().Get("userID")
+	if userID == "" {
+		utils.WriteError(w, http.StatusBadRequest, "empty query params userID")
 		return
 	}
 
-	publicKey, err := c.s.GetPublicKey(userID)
+	publicKey, err := c.s.Chat.GetPublicKey(userID)
 	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		utils.WriteError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 

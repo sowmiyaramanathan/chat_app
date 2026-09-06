@@ -11,8 +11,8 @@ import (
 // WebSocketMessage represents the message structure expected from/to the client
 type WebSocketMessage struct {
 	Message    string `json:"Message"`
-	FromUserID uint64 `json:"FromUserID"`
-	ToUserID   uint64 `json:"ToUserID"`
+	FromUserID string `json:"FromUserID"`
+	ToUserID   string `json:"ToUserID"`
 }
 
 // DirectMessage represents a routed direct 1-to-1 message in the Hub

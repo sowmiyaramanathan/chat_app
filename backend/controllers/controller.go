@@ -1,12 +1,14 @@
 package controllers
 
 import (
+	"backend/auth"
 	"backend/services"
 	"net/http"
 )
 
 type controller struct {
-	s services.Service
+	bucket *auth.TokenBucket
+	s      services.Service
 }
 
 type Controller interface {
@@ -34,8 +36,9 @@ type Controller interface {
 	HandleConnection(w http.ResponseWriter, r *http.Request)
 }
 
-func New(s services.Service) Controller {
+func New(s services.Service, b *auth.TokenBucket) Controller {
 	return &controller{
-		s: s,
+		s:      s,
+		bucket: b,
 	}
 }

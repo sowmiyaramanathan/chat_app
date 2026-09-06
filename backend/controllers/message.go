@@ -1,70 +1,104 @@
 package controllers
 
 import (
+	"backend/apperrors"
 	"backend/auth"
 	e "backend/entities"
 	"backend/entities/packet"
+	"backend/metrics"
 	"backend/utils"
 	"encoding/json"
+	"errors"
+	"log/slog"
 	"net/http"
 	"strconv"
+	"time"
 )
 
 func (c *controller) CreateMessage(w http.ResponseWriter, r *http.Request) {
+	if !c.bucket.Take(1) {
+		utils.WriteError(w, http.StatusTooManyRequests, "Too many requests")
+		return
+	}
+
+	toID := r.URL.Query().Get("toID")
+	if toID == "" {
+		utils.WriteError(w, http.StatusBadRequest, "empty query params userID")
+		return
+	}
+
 	var message e.Message
 	err := json.NewDecoder(r.Body).Decode(&message)
 	if err != nil {
-		http.Error(w, "Cannot Process your Request", http.StatusUnprocessableEntity)
-		return
-	}
-	toIdString := r.URL.Query().Get("to_id")
-	toId, err := strconv.ParseUint(toIdString, 10, 64)
-	if err != nil {
-		http.Error(w, "Bad Request", http.StatusBadRequest)
+		utils.WriteError(w, http.StatusUnprocessableEntity, "invalid json")
 		return
 	}
 
-	claims := auth.ExtractToken(r)
-	message.FromUserID = uint64(claims.Id)
-	message.ToUserID = toId
-
-	err = c.s.CreateMessage(&message)
+	claims, err := auth.ExtractToken(r)
 	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		if errors.Is(err, apperrors.ErrInvalidToken) {
+			utils.WriteError(w, http.StatusUnauthorized, "Unauthorized - claims missing")
+			return
+		}
+		utils.WriteError(w, http.StatusInternalServerError, "Failed to extract token")
 		return
 	}
+
+	message.FromUserID = claims.ID
+	message.ToUserID = toID
+
+	err = c.s.Chat.CreateMessage(&message)
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+
+	publishStart := time.Now()
+	if err := c.s.CS.PublishMessage(&message); err != nil {
+		metrics.Observe("websocket.publish_enqueue", time.Since(publishStart))
+		slog.Error("could not publish websocket message", "error", err)
+		utils.WriteError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+	metrics.Observe("websocket.publish_enqueue", time.Since(publishStart))
 
 	w.Write([]byte("Message Sent"))
 }
 
 func (c *controller) GetMessages(w http.ResponseWriter, r *http.Request) {
-	toIdStr := r.URL.Query().Get("to_id")
-	toId, err := strconv.ParseUint(toIdStr, 10, 64)
-	if err != nil {
-		http.Error(w, "Bad Request", http.StatusBadRequest)
+	toID := r.URL.Query().Get("toID")
+	if toID == "" {
+		utils.WriteError(w, http.StatusBadRequest, "empty query params userID")
 		return
 	}
 
 	limitStr := r.URL.Query().Get("limit")
 	limit, err := strconv.Atoi(limitStr)
 	if err != nil {
-		http.Error(w, "Bad Request", http.StatusBadRequest)
+		utils.WriteError(w, http.StatusBadRequest, "invalid query params")
 		return
 	}
 
 	cursorStr := r.URL.Query().Get("cursor")
 	cursor, err := utils.DecodeCursor(cursorStr)
 	if err != nil {
-		http.Error(w, "Invalid cursor", http.StatusBadRequest)
+		utils.WriteError(w, http.StatusBadRequest, "invalid query params")
 		return
 	}
 
-	claims := auth.ExtractToken(r)
-
-	messages, err := c.s.GetMyMessages(uint64(claims.Id), toId, limit, cursor)
-
+	claims, err := auth.ExtractToken(r)
 	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		if errors.Is(err, apperrors.ErrInvalidToken) {
+			utils.WriteError(w, http.StatusUnauthorized, "Unauthorized - claims missing")
+			return
+		}
+		utils.WriteError(w, http.StatusInternalServerError, "Failed to extract token")
+		return
+	}
+
+	messages, err := c.s.Chat.GetMyMessages(claims.ID, toID, limit, cursor)
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 

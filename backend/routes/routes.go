@@ -4,21 +4,27 @@ import (
 	"backend/auth"
 	"backend/controllers"
 	"backend/metrics"
+	"log/slog"
+	"net/http"
+	"os"
+	"time"
 
 	"github.com/go-chi/chi"
-	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/cors"
 	"github.com/go-chi/jwtauth/v5"
+	"github.com/joho/godotenv"
 )
 
 func InitializeRoutes(c controllers.Controller) *chi.Mux {
 	r := chi.NewRouter()
 
-	r.Use(middleware.Logger)
+	_ = godotenv.Load("../../.env")
+	allowedOrigin := os.Getenv("ALLOWED_ORIGIN")
+	r.Use(slogRequestLogger)
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:3000"},
-		AllowedMethods:   []string{"GET", "POST"},
-		AllowedHeaders:   []string{"Content-type", "withCredentials", "Access-Control-Allow-Origin : *", "Authorization"},
+		AllowedOrigins:   []string{allowedOrigin},
+		AllowedMethods:   []string{"GET", "POST", "PUT"},
+		AllowedHeaders:   []string{"Content-type", "Authorization"},
 		AllowCredentials: true,
 	}))
 
@@ -53,10 +59,10 @@ func InitializeRoutes(c controllers.Controller) *chi.Mux {
 			r.Use(jwtauth.Verifier(auth.TokenAuth))
 			r.Use(jwtauth.Authenticator(auth.TokenAuth))
 			r.Get("/isFriend", c.IsFriend)
-			r.Post("/sendFriendRequest", c.SendFriendRequest)
+			r.Post("/sendRequest", c.SendFriendRequest)
 			r.Get("/getFriendRequests", c.GetFriendRequests)
-			r.Get("/acceptFriendRequest", c.AcceptFriendRequest)
-			r.Get("/rejectFriendRequest", c.RejectFriendRequest)
+			r.Put("/acceptRequest", c.AcceptFriendRequest)
+			r.Put("/rejectRequest", c.RejectFriendRequest)
 			r.Get("/isRequestSent", c.IsFriendRequestSent)
 			r.Get("/isRequestReceived", c.IsRequestReceived)
 
@@ -64,4 +70,19 @@ func InitializeRoutes(c controllers.Controller) *chi.Mux {
 	})
 
 	return r
+}
+
+// slogRequestLogger records request metadata without exposing query parameters,
+// which may contain credentials such as the WebSocket token.
+func slogRequestLogger(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		next.ServeHTTP(w, r)
+
+		slog.Info("http request",
+			"method", r.Method,
+			"path", r.URL.Path,
+			"duration", time.Since(start),
+		)
+	})
 }
