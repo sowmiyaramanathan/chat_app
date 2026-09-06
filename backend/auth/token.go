@@ -1,9 +1,11 @@
 package auth
 
 import (
-	"fmt"
+	"backend/apperrors"
+	"log/slog"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/go-chi/jwtauth/v5"
 	"github.com/joho/godotenv"
@@ -17,31 +19,49 @@ func init() {
 	TokenAuth = jwtauth.New("HS256", []byte(secretKey), nil)
 }
 
-func CreateToken(userId uint, username string) string {
-	_, tokenString, err := TokenAuth.Encode(map[string]interface{}{"userID": userId, "username": username})
+func CreateToken(userId string, username string) (string, error) {
+	claims := map[string]interface{}{"userID": userId, "username": username}
+
+	jwtauth.SetExpiry(claims, time.Now().Add(15*time.Minute))
+	_, tokenString, err := TokenAuth.Encode(claims)
 	if err != nil {
-		fmt.Println(err)
+		slog.Error("failed to create token", "error", err)
+		return "", err
 	}
-	return tokenString
+
+	return tokenString, nil
 }
 
 type User struct {
 	Username string
-	Id       uint
+	ID       string
 }
 
-func ExtractToken(r *http.Request) *User {
-	_, claims, _ := jwtauth.FromContext(r.Context())
+func ExtractToken(r *http.Request) (data *User, err error) {
+	_, claims, err := jwtauth.FromContext(r.Context())
+	if err != nil {
+		slog.Debug("failed to decode token from request context", "error", err)
+		return nil, err
+	}
 
-	var data = &User{
-		Username: "",
-		Id:       0,
+	data = &User{}
+	if claims["username"] == nil || claims["userID"] == nil {
+		return nil, apperrors.ErrInvalidToken
 	}
-	if claims["username"] != nil && claims["userID"] != nil {
-		data = &User{
-			Username: claims["username"].(string),
-			Id:       uint(claims["userID"].(float64)),
-		}
+
+	username, ok := claims["username"].(string)
+	if !ok {
+		slog.Warn("token username claim has an invalid type")
+		return nil, apperrors.ErrTypeAssertion
 	}
-	return data
+
+	id, ok := claims["userID"].(string)
+	if !ok {
+		slog.Warn("token user ID claim has an invalid type")
+		return nil, apperrors.ErrTypeAssertion
+	}
+
+	data = &User{Username: username, ID: id}
+
+	return data, nil
 }

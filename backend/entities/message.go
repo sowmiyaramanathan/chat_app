@@ -4,9 +4,9 @@ import "gorm.io/gorm"
 
 type Message struct {
 	gorm.Model
-	FromUserID uint64 `gorm:"not null,index:idx_messages_users" json:"fromUserID"`
+	FromUserID string `gorm:"not null,index:idx_messages_users" json:"fromUserID"`
 	FromUser   User   `gorm:"foreignkey:FromUserID"`
-	ToUserID   uint64 `gorm:"not null,index:idx_messages_users" json:"toUserID"`
+	ToUserID   string `gorm:"not null,index:idx_messages_users" json:"toUserID"`
 	ToUser     User   `gorm:"foreignkey:ToUserID"`
 	Message    string `gorm:"not null" json:"message"`
 }

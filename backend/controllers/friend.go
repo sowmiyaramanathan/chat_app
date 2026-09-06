@@ -1,25 +1,34 @@
 package controllers
 
 import (
+	"backend/apperrors"
 	"backend/auth"
+	"backend/utils"
 	"encoding/json"
+	"errors"
 	"net/http"
-	"strconv"
 )
 
 func (c *controller) IsFriend(w http.ResponseWriter, r *http.Request) {
-	withUserIdString := r.URL.Query().Get("with_user_id")
-	withUser, err := strconv.ParseUint(withUserIdString, 10, 64)
-	if err != nil {
-		http.Error(w, "Bad Request", http.StatusBadRequest)
+	userID := r.URL.Query().Get("userID")
+	if userID == "" {
+		utils.WriteError(w, http.StatusBadRequest, "empty query params userID")
 		return
 	}
 
-	claims := auth.ExtractToken(r)
-
-	resp, err := c.s.CheckIsFriend(uint64(claims.Id), withUser)
+	claims, err := auth.ExtractToken(r)
 	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		if errors.Is(err, apperrors.ErrInvalidToken) {
+			utils.WriteError(w, http.StatusUnauthorized, "Unauthorized - claims missing")
+			return
+		}
+		utils.WriteError(w, http.StatusInternalServerError, "Failed to extract token")
+		return
+	}
+
+	resp, err := c.s.Chat.CheckIsFriend(claims.ID, userID)
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 
@@ -32,17 +41,25 @@ func (c *controller) IsFriend(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *controller) SendFriendRequest(w http.ResponseWriter, r *http.Request) {
-	toUserIDString := r.URL.Query().Get("to_user_id")
-	toUserID, err := strconv.ParseUint(toUserIDString, 10, 64)
-	if err != nil {
-		http.Error(w, "Bad Request", http.StatusBadRequest)
+	userID := r.URL.Query().Get("userID")
+	if userID == "" {
+		utils.WriteError(w, http.StatusBadRequest, "empty query params userID")
 		return
 	}
 
-	claims := auth.ExtractToken(r)
-	err = c.s.CreateFriendRequest(uint64(claims.Id), toUserID)
+	claims, err := auth.ExtractToken(r)
 	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		if errors.Is(err, apperrors.ErrInvalidToken) {
+			utils.WriteError(w, http.StatusUnauthorized, "Unauthorized - claims missing")
+			return
+		}
+		utils.WriteError(w, http.StatusInternalServerError, "Failed to extract token")
+		return
+	}
+
+	err = c.s.Chat.CreateFriendRequest(claims.ID, userID)
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 
@@ -50,11 +67,19 @@ func (c *controller) SendFriendRequest(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *controller) GetFriendRequests(w http.ResponseWriter, r *http.Request) {
-	claims := auth.ExtractToken(r)
-
-	requests, err := c.s.GetFriendRequests(uint64(claims.Id))
+	claims, err := auth.ExtractToken(r)
 	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		if errors.Is(err, apperrors.ErrInvalidToken) {
+			utils.WriteError(w, http.StatusUnauthorized, "Unauthorized - claims missing")
+			return
+		}
+		utils.WriteError(w, http.StatusInternalServerError, "Failed to extract token")
+		return
+	}
+
+	requests, err := c.s.Chat.GetFriendRequests(claims.ID)
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 
@@ -63,17 +88,25 @@ func (c *controller) GetFriendRequests(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *controller) AcceptFriendRequest(w http.ResponseWriter, r *http.Request) {
-	fromUserIDString := r.URL.Query().Get("from_user_id")
-	fromUserID, err := strconv.ParseUint(fromUserIDString, 10, 64)
-	if err != nil {
-		http.Error(w, "Bad Request", http.StatusBadRequest)
+	userID := r.URL.Query().Get("userID")
+	if userID == "" {
+		utils.WriteError(w, http.StatusBadRequest, "empty query params userID")
 		return
 	}
 
-	claims := auth.ExtractToken(r)
-	err = c.s.AcceptFriendRequest(fromUserID, uint64(claims.Id))
+	claims, err := auth.ExtractToken(r)
 	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		if errors.Is(err, apperrors.ErrInvalidToken) {
+			utils.WriteError(w, http.StatusUnauthorized, "Unauthorized - claims missing")
+			return
+		}
+		utils.WriteError(w, http.StatusInternalServerError, "Failed to extract token")
+		return
+	}
+
+	err = c.s.Chat.AcceptFriendRequest(userID, claims.ID)
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 
@@ -81,17 +114,25 @@ func (c *controller) AcceptFriendRequest(w http.ResponseWriter, r *http.Request)
 }
 
 func (c *controller) RejectFriendRequest(w http.ResponseWriter, r *http.Request) {
-	fromUserIDString := r.URL.Query().Get("from_user_id")
-	fromUserID, err := strconv.ParseUint(fromUserIDString, 10, 64)
-	if err != nil {
-		http.Error(w, "Bad Request", http.StatusBadRequest)
+	userID := r.URL.Query().Get("userID")
+	if userID == "" {
+		utils.WriteError(w, http.StatusBadRequest, "empty query params userID")
 		return
 	}
 
-	claims := auth.ExtractToken(r)
-	err = c.s.RejecttFriendRequest(fromUserID, uint64(claims.Id))
+	claims, err := auth.ExtractToken(r)
 	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		if errors.Is(err, apperrors.ErrInvalidToken) {
+			utils.WriteError(w, http.StatusUnauthorized, "Unauthorized - claims missing")
+			return
+		}
+		utils.WriteError(w, http.StatusInternalServerError, "Failed to extract token")
+		return
+	}
+
+	err = c.s.Chat.RejecttFriendRequest(userID, claims.ID)
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 
@@ -99,17 +140,21 @@ func (c *controller) RejectFriendRequest(w http.ResponseWriter, r *http.Request)
 }
 
 func (c *controller) IsFriendRequestSent(w http.ResponseWriter, r *http.Request) {
-	toUserIDString := r.URL.Query().Get("to_user_id")
-	toUserID, err := strconv.ParseUint(toUserIDString, 10, 64)
+	toUserID := r.URL.Query().Get("userID")
+
+	claims, err := auth.ExtractToken(r)
 	if err != nil {
-		http.Error(w, "Bad Request", http.StatusBadRequest)
+		if errors.Is(err, apperrors.ErrInvalidToken) {
+			utils.WriteError(w, http.StatusUnauthorized, "Unauthorized - claims missing")
+			return
+		}
+		utils.WriteError(w, http.StatusInternalServerError, "Failed to extract token")
 		return
 	}
 
-	claims := auth.ExtractToken(r)
-	resp, err := c.s.CheckIsFriendRequestSent(uint64(claims.Id), toUserID)
+	resp, err := c.s.Chat.CheckIsFriendRequestSent(claims.ID, toUserID)
 	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		utils.WriteError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 
@@ -122,17 +167,25 @@ func (c *controller) IsFriendRequestSent(w http.ResponseWriter, r *http.Request)
 }
 
 func (c *controller) IsRequestReceived(w http.ResponseWriter, r *http.Request) {
-	fromUserIDString := r.URL.Query().Get("from_user_id")
-	fromUserID, err := strconv.ParseUint(fromUserIDString, 10, 64)
-	if err != nil {
-		http.Error(w, "Bad Request", http.StatusBadRequest)
+	userID := r.URL.Query().Get("userID")
+	if userID == "" {
+		utils.WriteError(w, http.StatusBadRequest, "empty query params userID")
 		return
 	}
 
-	claims := auth.ExtractToken(r)
-	resp, err := c.s.CheckIsFriendRequestReceived(fromUserID, uint64(claims.Id))
+	claims, err := auth.ExtractToken(r)
 	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		if errors.Is(err, apperrors.ErrInvalidToken) {
+			utils.WriteError(w, http.StatusUnauthorized, "Unauthorized - claims missing")
+			return
+		}
+		utils.WriteError(w, http.StatusInternalServerError, "Failed to extract token")
+		return
+	}
+
+	resp, err := c.s.Chat.CheckIsFriendRequestReceived(userID, claims.ID)
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 

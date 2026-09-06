@@ -5,7 +5,7 @@ import (
 	"backend/metrics"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -51,7 +51,7 @@ func (cs *chatsocket) Run() {
 			cs.hub.Clients[client.ID] = client
 			cs.hub.Mu.Unlock()
 			metrics.ConnectionOpened()
-			log.Printf("User %s registered (total connected: %d)", client.ID, len(cs.hub.Clients))
+			slog.Info("websocket client registered", "user_id", client.ID, "total_connected", len(cs.hub.Clients))
 
 		case client := <-cs.hub.UnRegister:
 			cs.hub.Mu.Lock()
@@ -59,7 +59,7 @@ func (cs *chatsocket) Run() {
 				delete(cs.hub.Clients, client.ID)
 				close(client.Send)
 				metrics.ConnectionClosed()
-				log.Printf("User %s unregistered (total connected: %d)", client.ID, len(cs.hub.Clients))
+				slog.Info("websocket client unregistered", "user_id", client.ID, "total_connected", len(cs.hub.Clients))
 			}
 			cs.hub.Mu.Unlock()
 
@@ -79,7 +79,7 @@ func (cs *chatsocket) Run() {
 				default:
 					metrics.IncBufferFull()
 					// Recipient buffer full, disconnect slow client
-					log.Printf("User %s send buffer full, disconnecting", dm.RecipientID)
+					slog.Warn("websocket send buffer full; disconnecting client", "user_id", dm.RecipientID)
 					go func(c *entities.Client) {
 						cs.hub.UnRegister <- c
 						c.Conn.Close()
@@ -97,7 +97,7 @@ func (cs *chatsocket) Run() {
 						// Queued successfully
 					default:
 						metrics.IncBufferFull()
-						log.Printf("User %s (sender) buffer full", dm.SenderID)
+						slog.Warn("websocket sender buffer full", "user_id", dm.SenderID)
 					}
 				}
 			}
@@ -110,7 +110,10 @@ func (cs *chatsocket) Run() {
 // readPump pumps messages from the WebSocket connection to the hub
 func readPump(c *entities.Client) {
 	defer func() {
-		c.Hub.UnRegister <- c
+		select {
+		case c.Hub.UnRegister <- c:
+		case <-c.Hub.Ctx.Done():
+		}
 		c.Conn.Close()
 	}()
 
@@ -132,7 +135,7 @@ func readPump(c *entities.Client) {
 				websocket.CloseGoingAway,
 				websocket.CloseAbnormalClosure,
 				websocket.CloseNormalClosure) {
-				log.Printf("Read error for user %s: %v", c.ID, err)
+				slog.Warn("websocket read failed", "user_id", c.ID, "error", err)
 			}
 			break
 		}
@@ -140,19 +143,19 @@ func readPump(c *entities.Client) {
 		// Decode the message to read recipient details
 		var wsMsg entities.WebSocketMessage
 		if err := json.Unmarshal(payload, &wsMsg); err != nil {
-			log.Printf("Invalid message format from user %s: %v", c.ID, err)
+			slog.Warn("invalid websocket message", "user_id", c.ID, "error", err)
 			continue
 		}
 
 		// Routing verification (ensure sender claim matches payload)
-		senderKey := fmt.Sprintf("%d", wsMsg.FromUserID)
+		senderKey := fmt.Sprintf("%s", wsMsg.FromUserID)
 		if senderKey != c.ID {
-			log.Printf("Warning: User %s attempted to send message as user %d (mismatch)", c.ID, wsMsg.FromUserID)
+			slog.Warn("websocket sender identity mismatch", "connection_user_id", c.ID, "claimed_user_id", wsMsg.FromUserID)
 			continue
 		}
 
 		// Route message via the hub's directMessage channel
-		recipientKey := fmt.Sprintf("%d", wsMsg.ToUserID)
+		recipientKey := fmt.Sprintf("%s", wsMsg.ToUserID)
 		c.Hub.DirectMessage <- entities.DirectMessage{
 			RecipientID: recipientKey,
 			SenderID:    senderKey,
@@ -219,8 +222,8 @@ func (cs *chatsocket) PublishMessage(message *entities.Message) error {
 	}
 
 	cs.hub.DirectMessage <- entities.DirectMessage{
-		RecipientID: fmt.Sprintf("%d", message.ToUserID),
-		SenderID:    fmt.Sprintf("%d", message.FromUserID),
+		RecipientID: fmt.Sprintf("%s", message.ToUserID),
+		SenderID:    fmt.Sprintf("%s", message.FromUserID),
 		Payload:     payload,
 		EnqueuedAt:  time.Now(),
 	}

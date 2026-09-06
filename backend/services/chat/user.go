@@ -1,13 +1,13 @@
-package services
+package chat
 
 import (
+	"backend/apperrors"
 	e "backend/entities"
 	p "backend/entities/packet"
-	"errors"
-	"fmt"
 	"html"
 	"strings"
 
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -18,25 +18,25 @@ func hashPassword(password string) string {
 
 func prepareUser(user *e.User) {
 	user.Name = html.EscapeString(strings.TrimSpace(user.Name))
-	user.Username = html.EscapeString(strings.TrimSpace(user.Username))
+	user.UserName = html.EscapeString(strings.TrimSpace(user.UserName))
 	user.Password = html.EscapeString(strings.TrimSpace(user.Password))
 	user.Password = hashPassword(user.Password)
 }
 
-func (s *service) CreateUser(user *e.User) error {
+func (c *chat) CreateUser(user *e.User) error {
 	prepareUser(user)
-	_, err := s.m.GetUserByUsername(user.Username)
-	fmt.Println("username", err)
+	_, err := c.m.GetUserByUsername(user.UserName)
 	if err == nil {
-		return errors.New("username")
+		return apperrors.ErrUserAlreadyExists
 	}
 
-	_, err = s.m.GetUserByMobilenumber(user.Mobilenumber)
+	_, err = c.m.GetUserByMobilenumber(user.Mobilenumber)
 	if err == nil {
-		return errors.New("mobile_number")
+		return apperrors.ErrMobileAlreadyExists
 	}
 
-	_, err = s.m.SaveUser(user)
+	user.ID = uuid.NewString()
+	_, err = c.m.SaveUser(user)
 	if err != nil {
 		return err
 	}
@@ -48,21 +48,21 @@ func verifyPassword(hashedPassword, password string) error {
 	return bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
 }
 
-func (s *service) LoginUser(username, password string) (uint, error) {
-	user, err := s.m.GetUserByUsername(username)
+func (c *chat) LoginUser(username, password string) (ID string, err error) {
+	user, err := c.m.GetUserByUsername(username)
 	if err != nil {
-		return 0, errors.New("username")
+		return ID, apperrors.ErrUserNotFound
 	}
 	err = verifyPassword(user.Password, password)
 	if err != nil {
-		return 0, errors.New("wrong_password")
+		return ID, apperrors.ErrInvalidCredentials
 	}
 
 	return user.ID, nil
 }
 
-func (s *service) GetAllUsers(username string) ([]*p.Users, error) {
-	users, err := s.m.GetUsers(username)
+func (c *chat) GetAllUsers(username string) ([]*p.Users, error) {
+	users, err := c.m.GetUsers(username)
 	if err != nil {
 		return nil, err
 	}
@@ -70,8 +70,8 @@ func (s *service) GetAllUsers(username string) ([]*p.Users, error) {
 	return users, nil
 }
 
-func (s *service) GetPublicKey(userID uint64) (string, error) {
-	pubKey, err := s.m.GetPublicKey(userID)
+func (c *chat) GetPublicKey(userID string) (string, error) {
+	pubKey, err := c.m.GetPublicKey(userID)
 	if err != nil {
 		return "", err
 	}

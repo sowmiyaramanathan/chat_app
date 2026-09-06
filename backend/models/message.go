@@ -13,7 +13,7 @@ func (m *model) SaveMessage(message *e.Message) (*e.Message, error) {
 	return message, nil
 }
 
-func (m *model) GetMyMessagesByFromToId(fromId, toId uint64, limit int, cursor *p.Cursor) (messages []*p.Messages, err error) {
+func (m *model) GetMyMessagesByFromToId(fromId, toId string, limit int, cursor *p.Cursor) (messages []*p.Messages, err error) {
 	messages = []*p.Messages{}
 
 	query := m.Db.Model(&e.Message{}).
