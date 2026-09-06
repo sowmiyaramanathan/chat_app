@@ -4,6 +4,8 @@ import Navbar from "../../components/Navbar";
 import { getTheme } from "../../components/theme";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
+import axios from "axios";
+import { getTokenExpiry, setPvtKey, setToken } from "../../token/token";
 
 const ProtectedRoutes = ["/user/profile", "/user/chats", "/user/requests"];
 
@@ -20,6 +22,42 @@ export default function App({ Component, pageProps }: AppProps) {
       setMode(savedMode);
     }
   }, []);
+
+  useEffect(() => {
+    const expireSession = () => {
+      setToken(null);
+      setPvtKey(null);
+      setPushed(false);
+      if (router.pathname !== "/user/signin") {
+        void router.replace("/user/signin");
+      }
+    };
+
+    const interceptor = axios.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (error.response?.status === 401) expireSession();
+        return Promise.reject(error);
+      }
+    );
+
+    const token = localStorage.getItem("token");
+    const expiry = token ? getTokenExpiry(token) : null;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    if (token && expiry !== null) {
+      const delay = expiry * 1000 - Date.now();
+      if (delay <= 0) {
+        expireSession();
+      } else {
+        timer = setTimeout(expireSession, delay);
+      }
+    }
+
+    return () => {
+      axios.interceptors.response.eject(interceptor);
+      if (timer) clearTimeout(timer);
+    };
+  }, [router]);
 
   const toggleMode = () => {
     setMode((currentMode) => {

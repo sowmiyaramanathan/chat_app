@@ -1,4 +1,4 @@
-import { Box, Button, Typography } from "@mui/material";
+import { Alert, Box, Button, Typography } from "@mui/material";
 import LogoutIcon from "@mui/icons-material/Logout";
 import { setPvtKey, setToken } from "../token/token";
 import { STRINGS } from "./keys";
@@ -10,7 +10,7 @@ function signout() {
   window.location.reload();
 }
 
-export default function Profile({ name }: { name: string }) {
+export default function Profile({ name, error }: { name: string; error?: string | null }) {
   return (
     <Box
       sx={{
@@ -32,6 +32,7 @@ export default function Profile({ name }: { name: string }) {
           width: "100%",
         }}
       >
+        {error && <Alert severity="error" sx={{ width: "100%" }}>{error}</Alert>}
         <Typography variant="h5" color="primary.main" sx={{ textAlign: "center" }}>
           {STRINGS.profile.welcome(name)}
         </Typography>

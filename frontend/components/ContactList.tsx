@@ -1,4 +1,4 @@
-import { Box, Typography } from "@mui/material";
+import { Alert, Box, Typography } from "@mui/material";
 import ContactItem from "./ContactItem";
 import { UserSummary } from "./types";
 import { STRINGS } from "./keys";
@@ -8,10 +8,12 @@ export default function ContactList({
   contacts,
   selectedContactId,
   onContactSelect,
+  error,
 }: {
   contacts: UserSummary[];
-  selectedContactId: number | null;
+  selectedContactId: string | null;
   onContactSelect: (contact: UserSummary, friend: boolean) => void;
+  error?: string | null;
 }) {
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
@@ -23,6 +25,7 @@ export default function ContactList({
           {contacts.length} {contacts.length === 1 ? "person" : "people"}
         </Typography>
       </Box>
+      {error && <Alert severity="error" sx={{ m: 1.5 }}>{error}</Alert>}
       <Box
         sx={{
           flex: 1,

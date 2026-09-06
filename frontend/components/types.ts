@@ -1,12 +1,12 @@
 export interface UserSummary {
-  ID: number;
-  Username: string;
+  ID: string;
+  UserName: string;
 }
 
 export interface ChatMessage {
   ID: number;
-  FromUserID: number;
-  ToUserID: number;
+  FromUserID: string;
+  ToUserID: string;
   Message: string;
   CreatedAt?: string;
 }
@@ -22,6 +22,6 @@ export interface ChatMessagesResponse {
 }
 
 export interface FriendRequest {
-  FromUserID: number;
-  Username: string;
+  FromUserID: string;
+  UserName: string;
 }

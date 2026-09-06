@@ -13,17 +13,20 @@ import { MessageField } from "./CustomComponets";
 import { ChatMessage, ChatMessagesResponse } from "./types";
 import { STRINGS } from "./keys";
 import { panelHeader } from "./styles";
+import { getApiErrorMessage } from "./api";
+import { getTokenUserID } from "../token/token";
 
-function ChatScreen({ toID, username }: { toID: number; username: string }) {
+function ChatScreen({ toID, username }: { toID: string; username: string }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sendError, setSendError] = useState<string | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
   const ws = useRef<WebSocket | null>(null);
-  const currentUserIDRef = useRef<number | null>(null);
+  const currentUserIDRef = useRef<string | null>(null);
   const cursorRef = useRef("");
   const shouldScrollToBottomRef = useRef(false);
   const scrollImmediatelyRef = useRef(false);
@@ -34,8 +37,8 @@ function ChatScreen({ toID, username }: { toID: number; username: string }) {
   const normalizeMessage = (message: ChatMessage): ChatMessage => ({
     ...message,
     ID: Number(message.ID ?? 0),
-    FromUserID: Number(message.FromUserID),
-    ToUserID: Number(message.ToUserID),
+    FromUserID: message.FromUserID,
+    ToUserID: message.ToUserID,
   });
 
   const appendRealtimeMessage = (message: ChatMessage) => {
@@ -60,34 +63,16 @@ function ChatScreen({ toID, username }: { toID: number; username: string }) {
     setMessages((previous) => [...previous, normalizedMessage]);
   };
 
-  const getUserIDFromToken = (token: string) => {
-    const parts = token.split(".");
-    if (parts.length !== 3) {
-      throw new Error(STRINGS.errors.invalidToken);
-    }
-
-    const payload = parts[1];
-    const normalizedPayload = payload.replace(/-/g, "+").replace(/_/g, "/");
-    const paddedPayload = normalizedPayload.padEnd(
-      normalizedPayload.length + ((4 - (normalizedPayload.length % 4)) % 4),
-      "="
-    );
-    const jsonString = atob(paddedPayload);
-    const payloadObj = JSON.parse(jsonString);
-
-    return Number(payloadObj.userID ?? payloadObj.sub);
-  };
-
   useEffect(() => {
     const token =
       typeof window !== "undefined" ? localStorage.getItem("token") : null;
-    const currentUserID = token ? getUserIDFromToken(token) : null;
+    const currentUserID = token ? getTokenUserID(token) : null;
     currentUserIDRef.current = currentUserID;
 
     setLoading(true);
     setError(null);
 
-    if (!token || currentUserID === null || Number.isNaN(currentUserID)) {
+    if (!token || !currentUserID) {
       setError(STRINGS.errors.invalidToken);
       setLoading(false);
       return;
@@ -102,7 +87,7 @@ function ChatScreen({ toID, username }: { toID: number; username: string }) {
 
     axios
       .get<ChatMessagesResponse>("http://localhost:8000/message/view", {
-        params: { to_id: toID, limit: pageSize },
+        params: { toID: toID, limit: pageSize },
         headers: {
           Authorization: token ? `Bearer ${token}` : "",
         },
@@ -182,7 +167,7 @@ function ChatScreen({ toID, username }: { toID: number; username: string }) {
         "http://localhost:8000/message/view",
         {
           params: {
-            to_id: toID,
+            toID: toID,
             limit: pageSize,
             cursor: cursorRef.current,
           },
@@ -202,8 +187,8 @@ function ChatScreen({ toID, username }: { toID: number; username: string }) {
         if (!container) return;
         container.scrollTop = container.scrollHeight - previousHeight + previousTop;
       });
-    } catch {
-      setError(STRINGS.errors.loadMessages);
+    } catch (requestError: unknown) {
+      setError(getApiErrorMessage(requestError, STRINGS.errors.loadMessages));
     } finally {
       setLoadingOlder(false);
     }
@@ -211,23 +196,27 @@ function ChatScreen({ toID, username }: { toID: number; username: string }) {
 
   const handleSendMessage = async () => {
     if (newMessage.trim() === "") return;
+    setSendError(null);
 
     const token = localStorage.getItem("token");
     const currentUserID =
-      currentUserIDRef.current ?? (token ? getUserIDFromToken(token) : null);
+      currentUserIDRef.current ?? (token ? getTokenUserID(token) : null);
 
-    if (!token || currentUserID === null || Number.isNaN(currentUserID)) {
+    if (!token || !currentUserID) {
       setError(STRINGS.errors.invalidToken);
       return;
     }
 
-    await axios.post(
-      `http://localhost:8000/message/create?to_id=${toID}`,
-      { message: newMessage },
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-
-    setNewMessage("");
+    try {
+      await axios.post(
+        `http://localhost:8000/message/create?toID=${toID}`,
+        { message: newMessage },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setNewMessage("");
+    } catch (requestError: unknown) {
+      setSendError(getApiErrorMessage(requestError, STRINGS.errors.sendMessage));
+    }
   };
 
   return (
@@ -357,6 +346,7 @@ function ChatScreen({ toID, username }: { toID: number; username: string }) {
           </Box>
         )}
 
+        {sendError && <Alert severity="error" sx={{ mb: 1 }}>{sendError}</Alert>}
         <Box
           component="form"
           sx={{

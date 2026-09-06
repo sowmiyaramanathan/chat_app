@@ -1,8 +1,11 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import Profile from "../../../components/Profile";
+import { getApiErrorMessage } from "../../../components/api";
+import { STRINGS } from "../../../components/keys";
 export default function profile() {
   const [name, setName] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const token =
@@ -16,14 +19,14 @@ export default function profile() {
       .then((response) => {
         setName(response.data.name);
       })
-      .catch((error) => {
-        console.log(error.response);
+      .catch((requestError: unknown) => {
+        setError(getApiErrorMessage(requestError, STRINGS.errors.loadProfile));
       });
   }, []);
 
   return (
     <>
-      <Profile name={name} />
+      <Profile name={name} error={error} />
     </>
   );
 }

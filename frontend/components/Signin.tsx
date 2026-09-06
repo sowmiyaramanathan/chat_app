@@ -1,4 +1,4 @@
-import { Button, IconButton, InputAdornment, Stack } from "@mui/material";
+import { Alert, Button, IconButton, InputAdornment, Stack } from "@mui/material";
 import axios from "axios";
 import { Formik } from "formik";
 import { useRouter } from "next/router";
@@ -11,10 +11,12 @@ import { setToken, setPvtKey } from "../token/token";
 import { CustomTextField } from "./CustomComponets";
 import { STRINGS } from "./keys";
 import { containedButton, outlinedButton, panelCard } from "./styles";
+import { getApiErrorCode, getApiErrorMessage } from "./api";
 
 export default function Signin() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const handleClickShowPassword = () => setShowPassword((prev) => !prev);
 
@@ -30,30 +32,25 @@ export default function Signin() {
       initialValues={{ username: "", password: "" }}
       validationSchema={validationSchema}
       onSubmit={async (values, { setFieldError }) => {
-        axios({
-          method: "post",
-          url: "http://localhost:8000/user/login",
-          data: {
+        setSubmitError(null);
+        try {
+          const response = await axios.post("http://localhost:8000/user/login", {
             Username: values.username,
             Password: values.password,
-          },
-        })
-          .then((response) => {
-            setToken(response.data.token);
-            setPvtKey(response.data.privateKey);
-            router.push("/user/profile");
-          })
-          .catch((error) => {
-            console.log(error)
-            const message = error.response.data.message;
-            if (message == "Username") {
-              setFieldError("username", STRINGS.errors.usernameNotFound);
-            } else if (message == "Password") {
-              setFieldError("password", STRINGS.errors.wrongPassword);
-            } else {
-              console.log(error);
-            }
           });
+          setToken(response.data.token);
+          setPvtKey(response.data.privateKey);
+          await router.push("/user/profile");
+        } catch (error: unknown) {
+          const code = getApiErrorCode(error);
+          if (code === "username") {
+            setFieldError("username", STRINGS.errors.usernameNotFound);
+          } else if (code === "password") {
+            setFieldError("password", STRINGS.errors.wrongPassword);
+          } else {
+            setSubmitError(getApiErrorMessage(error, STRINGS.errors.signIn));
+          }
+        }
       }}
     >
       {({ values, errors, touched, handleChange, handleSubmit }) => {
@@ -70,6 +67,7 @@ export default function Signin() {
                 mt: { xs: 4, md: 8 },
               }}
             >
+              {submitError && <Alert severity="error">{submitError}</Alert>}
               <CustomTextField
                 id="username"
                 label={STRINGS.auth.username}

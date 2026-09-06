@@ -2,7 +2,7 @@ import { Alert, Box, CircularProgress, Typography } from "@mui/material";
 import PersonAddOutlinedIcon from "@mui/icons-material/PersonAddOutlined";
 import RequestItem from "./RequestItem";
 import { useCallback, useEffect, useState } from "react";
-import { acceptRequest, fetchRequests, rejectRequest } from "./api";
+import { acceptRequest, fetchRequests, getApiErrorMessage, rejectRequest } from "./api";
 import { FriendRequest } from "./types";
 import { STRINGS } from "./keys";
 import { emptyState, pageContainer, panelCard, panelHeader } from "./styles";
@@ -18,22 +18,23 @@ export default function RequestList() {
     fetchRequests()
       .then((res) => setRequests(res.data))
       .catch((err: unknown) => {
-        console.log(err);
-        setError(STRINGS.errors.loadRequests);
+        setError(getApiErrorMessage(err, STRINGS.errors.loadRequests));
       })
       .finally(() => setLoading(false));
   }, []);
 
-  const handleAccept = (id: number) => {
+  const handleAccept = (id: string) => {
+    setError(null);
     acceptRequest(id)
       .then(() => refreshRequests())
-      .catch((err) => console.log(err));
+      .catch((err: unknown) => setError(getApiErrorMessage(err, STRINGS.errors.updateRequest)));
   };
 
-  const handleReject = (id: number) => {
+  const handleReject = (id: string) => {
+    setError(null);
     rejectRequest(id)
       .then(() => refreshRequests())
-      .catch((err) => console.log(err));
+      .catch((err: unknown) => setError(getApiErrorMessage(err, STRINGS.errors.updateRequest)));
   };
 
   useEffect(() => {

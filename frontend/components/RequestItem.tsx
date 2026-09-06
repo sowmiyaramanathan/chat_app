@@ -9,8 +9,8 @@ export default function RequestItem({
   onReject,
 }: {
   request: FriendRequest;
-  onAccept: (id: number) => void;
-  onReject: (id: number) => void;
+  onAccept: (id: string) => void;
+  onReject: (id: string) => void;
 }) {
   return (
     <Box
@@ -39,11 +39,11 @@ export default function RequestItem({
           }}
         >
           <Typography variant="body1" sx={{ fontWeight: 700, color: "primary.main" }}>
-            {request.Username.charAt(0).toUpperCase()}
+            {request.UserName.charAt(0).toUpperCase()}
           </Typography>
         </Box>
         <Typography variant="body1" sx={{ fontWeight: 600, color: "text.primary" }}>
-          {request.Username}
+          {request.UserName}
         </Typography>
       </Box>
       <Box sx={{ display: "flex", gap: 1.5 }}>

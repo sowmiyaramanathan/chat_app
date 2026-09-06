@@ -8,7 +8,7 @@ import { UserSummary } from "./types";
 import { STRINGS } from "./keys";
 import { emptyState, pageContainer, panelCard } from "./styles";
 
-export default function Chats({ contacts }: { contacts: UserSummary[] }) {
+export default function Chats({ contacts, contactsError }: { contacts: UserSummary[]; contactsError?: string | null }) {
   const [selectedContact, setSelectedContact] = useState<UserSummary | null>(
     null
   );
@@ -40,6 +40,7 @@ export default function Chats({ contacts }: { contacts: UserSummary[] }) {
             contacts={contacts}
             selectedContactId={selectedContact?.ID ?? null}
             onContactSelect={handleContactSelect}
+            error={contactsError}
           />
         </Box>
 
@@ -55,7 +56,7 @@ export default function Chats({ contacts }: { contacts: UserSummary[] }) {
           {selectedContact && isFriend ? (
             <ChatScreen
               toID={selectedContact.ID}
-              username={selectedContact.Username}
+              username={selectedContact.UserName}
             />
           ) : selectedContact && !isFriend ? (
             <RequestStatus

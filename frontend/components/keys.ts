@@ -47,7 +47,12 @@ export const STRINGS = {
     invalidToken: "Invalid token",
     loadMessages: "Could not load messages. Please try again.",
     loadContacts: "Could not check contact status.",
+    loadProfile: "Could not load your profile.",
     loadRequests: "Could not load friend requests.",
+    signIn: "We could not sign you in. Please try again.",
+    signUp: "We could not create your account. Please try again.",
+    sendMessage: "Your message could not be sent.",
+    updateRequest: "We could not update that request. Please try again.",
   },
   profile: {
     welcome: (name: string) => `Welcome back, ${name}!`,

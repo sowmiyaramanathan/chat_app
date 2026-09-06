@@ -1,4 +1,4 @@
-import { Button, IconButton, InputAdornment, Stack } from "@mui/material";
+import { Alert, Button, IconButton, InputAdornment, Stack } from "@mui/material";
 import axios from "axios";
 import { Formik } from "formik";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
@@ -10,11 +10,13 @@ import * as Yup from "yup";
 import { CustomTextField } from "./CustomComponets";
 import { STRINGS } from "./keys";
 import { containedButton, outlinedButton, panelCard } from "./styles";
+import { getApiErrorCode, getApiErrorMessage } from "./api";
 
 export default function Signup() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const handleClickShowPassword = () => setShowPassword((prev) => !prev);
   const handleClickShowConfirmPassword = () =>
@@ -23,7 +25,7 @@ export default function Signup() {
   const validationSchema = Yup.object().shape({
     name: Yup.string().required(STRINGS.validation.nameRequired),
     username: Yup.string().required(STRINGS.validation.usernameRequired),
-    mobile_number: Yup.string()
+    mobileNumber: Yup.string()
       .matches(/^[6-9]\d{9}$/, {
         message: STRINGS.validation.mobileInvalid,
       })
@@ -41,35 +43,31 @@ export default function Signup() {
       initialValues={{
         name: "",
         username: "",
-        mobile_number: "",
+        mobileNumber: "",
         password: "",
         confirm_password: "",
       }}
       validationSchema={validationSchema}
       onSubmit={async (values, { setFieldError }) => {
-        await axios({
-          method: "post",
-          url: "http://localhost:8000/user/register",
-          data: {
+        setSubmitError(null);
+        try {
+          await axios.post("http://localhost:8000/user/register", {
             Name: values.name,
             Username: values.username,
-            mobile_number: values.mobile_number,
+            mobileNumber: values.mobileNumber,
             Password: values.password,
-          },
-        })
-          .then(() => {
-            router.push("/user/signin");
-          })
-          .catch((error) => {
-            const message = error.response.data.message;
-            if (message == "Username") {
-              setFieldError("username", STRINGS.errors.usernameExists);
-            } else if (message == "Number") {
-              setFieldError("mobile_number", STRINGS.errors.mobileExists);
-            } else {
-              console.log(error);
-            }
           });
+          await router.push("/user/signin");
+        } catch (error: unknown) {
+          const code = getApiErrorCode(error);
+          if (code === "username") {
+            setFieldError("username", STRINGS.errors.usernameExists);
+          } else if (code === "number") {
+            setFieldError("mobileNumber", STRINGS.errors.mobileExists);
+          } else {
+            setSubmitError(getApiErrorMessage(error, STRINGS.errors.signUp));
+          }
+        }
       }}
     >
       {({ values, errors, touched, handleChange, handleSubmit }) => {
@@ -86,6 +84,7 @@ export default function Signup() {
                 mt: { xs: 4, md: 6 },
               }}
             >
+              {submitError && <Alert severity="error">{submitError}</Alert>}
               <CustomTextField
                 id="name"
                 label={STRINGS.auth.name}
@@ -105,13 +104,13 @@ export default function Signup() {
                 helperText={touched.username && errors.username}
               />
               <CustomTextField
-                id="mobile_number"
+                id="mobileNumber"
                 label={STRINGS.auth.mobileNumber}
-                value={values.mobile_number}
+                value={values.mobileNumber}
                 variant="outlined"
                 onChange={handleChange}
-                error={touched.mobile_number && Boolean(errors.mobile_number)}
-                helperText={touched.mobile_number && errors.mobile_number}
+                error={touched.mobileNumber && Boolean(errors.mobileNumber)}
+                helperText={touched.mobileNumber && errors.mobileNumber}
               />
               <CustomTextField
                 id="password"

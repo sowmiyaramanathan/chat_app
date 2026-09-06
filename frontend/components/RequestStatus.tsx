@@ -1,8 +1,8 @@
-import { Box, Button, CircularProgress, Typography } from "@mui/material";
+import { Alert, Box, Button, CircularProgress, Typography } from "@mui/material";
 import PersonOutlinedIcon from "@mui/icons-material/PersonOutlined";
 import axios from "axios";
 import { useEffect, useState } from "react";
-import { acceptRequest, rejectRequest } from "./api";
+import { acceptRequest, getApiErrorMessage, rejectRequest } from "./api";
 import { UserSummary } from "./types";
 import { STRINGS } from "./keys";
 import { containedButton, emptyState, outlinedButton, panelHeader } from "./styles";
@@ -16,13 +16,15 @@ export default function RequestStatus({
 }) {
   const [status, setStatus] = useState<"" | "Received" | "Sent">("");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
+    setError(null);
 
     axios
       .get(
-        `http://localhost:8000/friends/isRequestReceived?from_user_id=${contact.ID}`,
+        `http://localhost:8000/friends/isRequestReceived?userID=${contact.ID}`,
         {
           headers: {
             Authorization: "Bearer " + `${localStorage.getItem("token")}`,
@@ -36,7 +38,7 @@ export default function RequestStatus({
         } else {
           axios
             .get(
-              `http://localhost:8000/friends/isRequestSent?to_user_id=${contact.ID}`,
+              `http://localhost:8000/friends/isRequestSent?userID=${contact.ID}`,
               {
                 headers: {
                   Authorization: "Bearer " + `${localStorage.getItem("token")}`,
@@ -50,20 +52,21 @@ export default function RequestStatus({
                 setStatus("");
               }
             })
-            .catch((err) => console.log(err))
+            .catch((err: unknown) => setError(getApiErrorMessage(err, STRINGS.errors.loadContacts)))
             .finally(() => setLoading(false));
         }
       })
-      .catch((err) => {
-        console.log(err);
+      .catch((err: unknown) => {
+        setError(getApiErrorMessage(err, STRINGS.errors.loadContacts));
         setLoading(false);
       });
   }, [contact.ID]);
 
   function sendRequest() {
+    setError(null);
     axios
       .post(
-        `http://localhost:8000/friends/sendFriendRequest?to_user_id=${contact.ID}`,
+        `http://localhost:8000/friends/sendRequest?userID=${contact.ID}`,
         "",
         {
           headers: {
@@ -76,14 +79,14 @@ export default function RequestStatus({
           setStatus("Sent");
         }
       })
-      .catch((err) => console.log(err));
+      .catch((err: unknown) => setError(getApiErrorMessage(err, STRINGS.errors.updateRequest)));
   }
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", flex: 1, height: "100%" }}>
       <Box sx={panelHeader}>
         <Typography variant="h6" color="primary.main" sx={{ fontWeight: 700 }}>
-          {contact.Username}
+          {contact.UserName}
         </Typography>
       </Box>
 
@@ -100,6 +103,7 @@ export default function RequestStatus({
         </Box>
       ) : (
         <Box sx={{ ...emptyState, bgcolor: "surface.dark" }}>
+          {error && <Alert severity="error" sx={{ width: "100%", maxWidth: 420 }}>{error}</Alert>}
           <PersonOutlinedIcon
             sx={{ fontSize: 48, color: "accent.main", mb: 1 }}
           />
@@ -116,8 +120,12 @@ export default function RequestStatus({
                 variant="contained"
                 sx={containedButton}
                 onClick={() => {
-                  acceptRequest(contact.ID);
-                  onAccept(contact, true);
+                  setError(null);
+                  acceptRequest(contact.ID)
+                    .then(() => onAccept(contact, true))
+                    .catch((err: unknown) =>
+                      setError(getApiErrorMessage(err, STRINGS.errors.updateRequest))
+                    );
                 }}
               >
                 {STRINGS.requests.accept}
@@ -126,8 +134,12 @@ export default function RequestStatus({
                 variant="outlined"
                 sx={outlinedButton}
                 onClick={() => {
-                  rejectRequest(contact.ID);
-                  setStatus("");
+                  setError(null);
+                  rejectRequest(contact.ID)
+                    .then(() => setStatus(""))
+                    .catch((err: unknown) =>
+                      setError(getApiErrorMessage(err, STRINGS.errors.updateRequest))
+                    );
                 }}
               >
                 {STRINGS.requests.reject}
