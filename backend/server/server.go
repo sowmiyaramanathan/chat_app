@@ -14,11 +14,15 @@ import (
 	"backend/auth"
 	"backend/controllers"
 	"backend/db/postgres"
+	"backend/entities/packet"
 	"backend/metrics"
 	"backend/models"
+	"backend/redis"
 	"backend/routes"
 	"backend/services"
 	"backend/services/websocket"
+
+	"github.com/google/uuid"
 )
 
 func Run() {
@@ -51,14 +55,29 @@ func Run() {
 	}()
 
 	hub := websocket.NewHub()
-	ws := websocket.New(hub)
+
+	redisClient, err := redis.New(ctx)
+	if err != nil {
+		slog.Error("failed to start redis", "error", err)
+		return
+	}
+	defer redisClient.Close()
+	instanceID := envString("INSTANCE_ID", uuid.NewString())
+	ws := websocket.New(hub, redisClient, instanceID)
+
+	go func() {
+		err := redisClient.SubscribeMessages(ctx, func(event packet.MessageEvent) {
+			slog.Info("redis message received", "instance_id", instanceID, "event_id", event.EventID, "recipient_id", event.RecipientID)
+			ws.RouteToLocalConnections(&event)
+		})
+		if err != nil && ctx.Err() == nil {
+			slog.Error("redis subscriber exited", "error", err)
+		}
+	}()
 
 	m := models.New(Db)
-	s := services.New(m, ws)
-	b := auth.NewTokenBucket(
-		envInt("RATE_LIMIT_CAPACITY", 5),
-		envInt("RATE_LIMIT_RATE", 0),
-	)
+	s := services.New(m, ws, redisClient)
+	b := auth.NewTokenBucket(envInt("RATE_LIMIT_CAPACITY", 5), envInt("RATE_LIMIT_RATE", 2))
 	c := controllers.New(s, b)
 
 	r := routes.InitializeRoutes(c)
@@ -81,7 +100,7 @@ func Run() {
 	}()
 
 	server := &http.Server{
-		Addr:    ":8000",
+		Addr:    ":" + envString("PORT", "8000"),
 		Handler: r,
 	}
 
@@ -120,4 +139,11 @@ func envInt(name string, fallback int) int {
 		return fallback
 	}
 	return value
+}
+
+func envString(name, fallback string) string {
+	if value := os.Getenv(name); value != "" {
+		return value
+	}
+	return fallback
 }

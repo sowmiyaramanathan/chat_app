@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi"
@@ -19,10 +20,9 @@ func InitializeRoutes(c controllers.Controller) *chi.Mux {
 	r := chi.NewRouter()
 
 	_ = godotenv.Load("../../.env")
-	allowedOrigin := os.Getenv("ALLOWED_ORIGIN")
 	r.Use(slogRequestLogger)
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{allowedOrigin},
+		AllowedOrigins:   frontendOrigins(),
 		AllowedMethods:   []string{"GET", "POST", "PUT"},
 		AllowedHeaders:   []string{"Content-type", "Authorization"},
 		AllowCredentials: true,
@@ -70,6 +70,22 @@ func InitializeRoutes(c controllers.Controller) *chi.Mux {
 	})
 
 	return r
+}
+
+func frontendOrigins() []string {
+	configured := os.Getenv("FRONTEND_ORIGINS")
+	if configured == "" {
+		configured = os.Getenv("ALLOWED_ORIGIN")
+	}
+	if configured == "" {
+		return []string{"http://localhost:3000", "http://localhost:3001"}
+	}
+
+	origins := strings.Split(configured, ",")
+	for i := range origins {
+		origins[i] = strings.TrimSpace(origins[i])
+	}
+	return origins
 }
 
 // slogRequestLogger records request metadata without exposing query parameters,

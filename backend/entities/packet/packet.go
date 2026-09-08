@@ -38,3 +38,13 @@ type Cursor struct {
 type ErrorResponse struct {
 	Error string `json:"error"`
 }
+
+type MessageEvent struct {
+	EventID        string    `json:"event_id"`
+	MessageID      string    `json:"message_id"`
+	SenderID       string    `json:"sender_id"`
+	RecipientID    string    `json:"recipient_id"`
+	Payload        []byte    `json:"payload"`
+	OriginInstance string    `json:"origin_instance"`
+	CreatedAt      time.Time `json:"created_at"`
+}

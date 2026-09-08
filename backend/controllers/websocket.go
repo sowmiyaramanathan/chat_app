@@ -7,26 +7,41 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/jwtauth/v5"
 	"github.com/gorilla/websocket"
 )
 
-var allowedOrigin = os.Getenv("ALLOWED_ORIGIN")
-
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 	CheckOrigin: func(r *http.Request) bool {
-		allowedOrigin := os.Getenv("ALLOWED_ORIGIN")
-
-		if r.Header.Get("Origin") != allowedOrigin {
-			return false
+		origin := r.Header.Get("Origin")
+		for _, allowedOrigin := range websocketOrigins() {
+			if origin == allowedOrigin {
+				return true
+			}
 		}
-
-		return true
+		return false
 	},
+}
+
+func websocketOrigins() []string {
+	configured := os.Getenv("FRONTEND_ORIGINS")
+	if configured == "" {
+		configured = os.Getenv("ALLOWED_ORIGIN")
+	}
+	if configured == "" {
+		return []string{"http://localhost:3000", "http://localhost:3001"}
+	}
+
+	origins := strings.Split(configured, ",")
+	for i := range origins {
+		origins[i] = strings.TrimSpace(origins[i])
+	}
+	return origins
 }
 
 func (c *controller) HandleConnection(w http.ResponseWriter, r *http.Request) {

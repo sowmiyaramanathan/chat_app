@@ -5,14 +5,14 @@ import (
 	"backend/auth"
 	e "backend/entities"
 	"backend/entities/packet"
-	"backend/metrics"
 	"backend/utils"
 	"encoding/json"
 	"errors"
-	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 func (c *controller) CreateMessage(w http.ResponseWriter, r *http.Request) {
@@ -53,14 +53,28 @@ func (c *controller) CreateMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	publishStart := time.Now()
-	if err := c.s.CS.PublishMessage(&message); err != nil {
-		metrics.Observe("websocket.publish_enqueue", time.Since(publishStart))
-		slog.Error("could not publish websocket message", "error", err)
+	pubMsgEvent := packet.MessageEvent{
+		EventID:     uuid.NewString(),
+		MessageID:   strconv.FormatUint(uint64(message.ID), 10),
+		SenderID:    message.FromUserID,
+		RecipientID: message.ToUserID,
+		CreatedAt:   time.Now().UTC(),
+	}
+	pubMsgEvent.Payload, err = json.Marshal(e.WebSocketMessage{
+		Message:    message.Message,
+		FromUserID: message.FromUserID,
+		ToUserID:   message.ToUserID,
+	})
+	if err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
-	metrics.Observe("websocket.publish_enqueue", time.Since(publishStart))
+
+	err = c.s.Redis.PublishMessage(r.Context(), pubMsgEvent)
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
 
 	w.Write([]byte("Message Sent"))
 }

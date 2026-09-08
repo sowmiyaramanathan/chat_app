@@ -2,23 +2,28 @@ package websocket
 
 import (
 	"backend/entities"
+	"backend/entities/packet"
+	redisstore "backend/redis"
 	"context"
 
 	"github.com/gorilla/websocket"
 )
 
 type chatsocket struct {
-	hub *entities.Hub
+	hub      *entities.Hub
+	registry redisstore.ConnectionRegistry
+	instance string
 }
 
 type ChatSocket interface {
 	Run()
 	RunWebsocket(conn *websocket.Conn, connUserID string)
 	PublishMessage(message *entities.Message) error
+	RouteToLocalConnections(event *packet.MessageEvent)
 }
 
-func New(hub *entities.Hub) ChatSocket {
-	cs := &chatsocket{hub: hub}
+func New(hub *entities.Hub, registry redisstore.ConnectionRegistry, instance string) ChatSocket {
+	cs := &chatsocket{hub: hub, registry: registry, instance: instance}
 	go cs.Run()
 	return cs
 }

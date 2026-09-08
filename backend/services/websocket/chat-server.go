@@ -2,12 +2,15 @@ package websocket
 
 import (
 	"backend/entities"
+	"backend/entities/packet"
 	"backend/metrics"
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
 
@@ -25,6 +28,61 @@ const (
 	// Maximum message size allowed from client (e.g., 512KB)
 	maxMessageSize = 512 * 1024
 )
+
+// HandleConnection handles new incoming HTTP connections and upgrades them to WebSockets
+func (cs *chatsocket) RunWebsocket(conn *websocket.Conn, connUserID string) {
+	// INITIALIZE CLIENT
+	client := &entities.Client{
+		Hub:  cs.hub,
+		Conn: conn,
+		Send: make(chan []byte, 256), // Buffered to prevent blocking other goroutines
+		ID:   connUserID,
+	}
+
+	// Register with Hub
+	cs.hub.Register <- client
+	connectionID := uuid.NewString()
+	if cs.registry != nil {
+		if err := cs.registry.RegisterConnection(cs.hub.Ctx, connUserID, connectionID, cs.instance); err != nil {
+			slog.Warn("failed to register websocket connection", "user_id", connUserID, "error", err)
+		}
+		closed := make(chan struct{})
+		go cs.refreshConnection(connUserID, connectionID, closed)
+		go func() {
+			defer close(closed)
+			readPump(client)
+		}()
+	} else {
+		go readPump(client)
+	}
+
+	// RUN READ AND WRITE PUMPS IN SEPARATE GOROUTINES
+	// This separates reading from writing, resolving concurrent-write safety issues.
+	go writePump(client)
+}
+
+func (cs *chatsocket) refreshConnection(userID, connectionID string, closed <-chan struct{}) {
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-closed:
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			if err := cs.registry.UnregisterConnection(ctx, userID, connectionID, cs.instance); err != nil {
+				slog.Warn("failed to unregister websocket connection", "user_id", userID, "error", err)
+			}
+			cancel()
+			return
+		case <-cs.hub.Ctx.Done():
+			return
+		case <-ticker.C:
+			if err := cs.registry.RefreshConnection(cs.hub.Ctx, userID, connectionID); err != nil {
+				slog.Warn("failed to refresh websocket connection", "user_id", userID, "error", err)
+			}
+		}
+	}
+}
 
 // Run starts the hub's main event loop in a background goroutine
 func (cs *chatsocket) Run() {
@@ -231,21 +289,16 @@ func (cs *chatsocket) PublishMessage(message *entities.Message) error {
 	return nil
 }
 
-// HandleConnection handles new incoming HTTP connections and upgrades them to WebSockets
-func (cs *chatsocket) RunWebsocket(conn *websocket.Conn, connUserID string) {
-	// INITIALIZE CLIENT
-	client := &entities.Client{
-		Hub:  cs.hub,
-		Conn: conn,
-		Send: make(chan []byte, 256), // Buffered to prevent blocking other goroutines
-		ID:   connUserID,
+func (cs *chatsocket) RouteToLocalConnections(event *packet.MessageEvent) {
+	select {
+	case cs.hub.DirectMessage <- entities.DirectMessage{
+		RecipientID: event.RecipientID,
+		SenderID:    event.SenderID,
+		Payload:     event.Payload,
+		EnqueuedAt:  event.CreatedAt,
+	}:
+	default:
+		metrics.IncBufferFull()
+		slog.Warn("local websocket hub queue full", "event_id", event.EventID)
 	}
-
-	// Register with Hub
-	cs.hub.Register <- client
-
-	// RUN READ AND WRITE PUMPS IN SEPARATE GOROUTINES
-	// This separates reading from writing, resolving concurrent-write safety issues.
-	go writePump(client)
-	go readPump(client)
 }
