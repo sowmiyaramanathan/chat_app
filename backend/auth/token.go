@@ -2,6 +2,7 @@ package auth
 
 import (
 	"backend/apperrors"
+	"errors"
 	"log/slog"
 	"net/http"
 	"os"
@@ -16,20 +17,34 @@ var TokenAuth *jwtauth.JWTAuth
 func init() {
 	godotenv.Load("../.env")
 	secretKey := os.Getenv("SECRET_KEY")
+	if secretKey == "" {
+		slog.Error("SECRET_KEY is empty")
+	}
+
 	TokenAuth = jwtauth.New("HS256", []byte(secretKey), nil)
 }
 
-func CreateToken(userId string, username string) (string, error) {
+func CreateToken(userId string, username string) (string, string, error) {
+	if TokenAuth == nil {
+		return "", "", errors.New("token auth is not initialized")
+	}
 	claims := map[string]interface{}{"userID": userId, "username": username}
 
 	jwtauth.SetExpiry(claims, time.Now().Add(15*time.Minute))
-	_, tokenString, err := TokenAuth.Encode(claims)
+	_, accessToken, err := TokenAuth.Encode(claims)
 	if err != nil {
-		slog.Error("failed to create token", "error", err)
-		return "", err
+		slog.Error("failed to create acess token", "error", err)
+		return "", "", err
 	}
 
-	return tokenString, nil
+	jwtauth.SetExpiry(claims, time.Now().Add(7*24*time.Hour))
+	_, refreshToken, err := TokenAuth.Encode(claims)
+	if err != nil {
+		slog.Error("failed to create refresh token", "error", err)
+		return "", "", err
+	}
+
+	return accessToken, refreshToken, nil
 }
 
 type User struct {
@@ -38,6 +53,9 @@ type User struct {
 }
 
 func ExtractToken(r *http.Request) (data *User, err error) {
+	if TokenAuth == nil {
+		return nil, errors.New("token auth is not initialized")
+	}
 	_, claims, err := jwtauth.FromContext(r.Context())
 	if err != nil {
 		slog.Debug("failed to decode token from request context", "error", err)

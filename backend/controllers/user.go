@@ -9,6 +9,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"time"
 )
 
 func (c *controller) RegisterUser(w http.ResponseWriter, r *http.Request) {
@@ -25,7 +26,7 @@ func (c *controller) RegisterUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = c.s.Chat.CreateUser(&user)
+	err = c.service.Chat.CreateUser(&user)
 	if err != nil {
 		if errors.Is(err, apperrors.ErrUserAlreadyExists) {
 			utils.WriteError(w, http.StatusConflict, "username")
@@ -50,35 +51,54 @@ func (c *controller) LoginUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var user e.User
-	err := json.NewDecoder(r.Body).Decode(&user)
-	if err != nil {
-		utils.WriteError(w, http.StatusInternalServerError, "invalid json")
+	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+		utils.WriteError(w, http.StatusBadRequest, "invalid json")
 		return
 	}
 
-	userId, err := c.s.Chat.LoginUser(user.UserName, user.Password)
+	userID, err := c.service.Chat.LoginUser(user.UserName, user.Password)
 	if err != nil {
 		if errors.Is(err, apperrors.ErrUserNotFound) {
 			utils.WriteError(w, http.StatusConflict, "username")
 			return
-		} else if errors.Is(err, apperrors.ErrInvalidCredentials) {
+		}
+		if errors.Is(err, apperrors.ErrInvalidCredentials) {
 			utils.WriteError(w, http.StatusConflict, "password")
 			return
-		} else {
-			utils.WriteError(w, http.StatusInternalServerError, "internal error")
-			return
 		}
+		utils.WriteError(w, http.StatusInternalServerError, "internal error")
+		return
 	}
 
-	tokenString, err := auth.CreateToken(userId, user.UserName)
+	// Set access/refresh token expiry durations
+	accessTokenDuration := time.Minute * 15
+	refreshTokenDuration := time.Hour * 24 * 7 // 7 days
+
+	accessToken, refreshToken, err := auth.CreateToken(userID, user.UserName)
 	if err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, "Failed to create token")
 		return
 	}
 
+	now := time.Now()
+	session := &e.Session{
+		ID:           userID,
+		Username:     user.UserName,
+		RefreshToken: refreshToken,
+		ExpiresAt:    now.Add(refreshTokenDuration),
+	}
+
+	if err := c.service.Chat.CreateSession(session); err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, "Failed to create session")
+		return
+	}
+
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status": "Logged in successfully",
-		"token":  tokenString,
+		"status":                "Logged in successfully",
+		"token":                 accessToken,
+		"refreshToken":          refreshToken,
+		"accessTokenExpiresIn":  int(accessTokenDuration.Seconds()),
+		"refreshTokenExpiresIn": int(refreshTokenDuration.Seconds()),
 	})
 }
 
@@ -109,7 +129,7 @@ func (c *controller) GetAllUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	users, err := c.s.Chat.GetAllUsers(claims.Username)
+	users, err := c.service.Chat.GetAllUsers(claims.Username)
 	if err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, "internal error")
 		return
@@ -117,4 +137,45 @@ func (c *controller) GetAllUsers(w http.ResponseWriter, r *http.Request) {
 
 	data := users
 	json.NewEncoder(w).Encode(data)
+}
+
+func (c *controller) RefreshToken(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		RefreshToken string `json:"refreshToken"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.WriteError(w, http.StatusBadRequest, "Invalid request")
+		return
+	}
+
+	// Validate the refresh token exists and is not expired
+	session, err := c.service.Chat.GetSessionByRefreshToken(req.RefreshToken)
+	if err != nil {
+		utils.WriteError(w, http.StatusUnauthorized, "Invalid refresh token")
+		return
+	}
+	if time.Now().After(session.ExpiresAt) {
+		utils.WriteError(w, http.StatusUnauthorized, "Refresh token expired")
+		return
+	}
+
+	// Query the user by username from the session
+	user, err := c.service.Chat.GetUserByUsername(session.Username)
+	if err != nil {
+		utils.WriteError(w, http.StatusUnauthorized, "User not found for refresh token")
+		return
+	}
+
+	// Create new tokens
+	accessToken, _, err := auth.CreateToken(user.ID, user.UserName)
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, "Failed to create tokens")
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status":       "Token refreshed successfully",
+		"token":        accessToken,
+		"refreshToken": req.RefreshToken,
+	})
 }

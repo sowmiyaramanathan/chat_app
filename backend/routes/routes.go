@@ -34,6 +34,7 @@ func InitializeRoutes(c controllers.Controller) *chi.Mux {
 	r.Route("/user", func(r chi.Router) {
 		r.Post("/register", c.RegisterUser)
 		r.Post("/login", c.LoginUser)
+		r.Post("/auth/refresh", c.RefreshToken)
 
 		r.Group(func(r chi.Router) {
 			r.Use(jwtauth.Verifier(auth.TokenAuth))
@@ -64,7 +65,6 @@ func InitializeRoutes(c controllers.Controller) *chi.Mux {
 			r.Put("/rejectRequest", c.RejectFriendRequest)
 			r.Get("/isRequestSent", c.IsFriendRequestSent)
 			r.Get("/isRequestReceived", c.IsRequestReceived)
-
 		})
 	})
 
@@ -77,6 +77,11 @@ func frontendOrigins() []string {
 		configured = os.Getenv("ALLOWED_ORIGIN")
 	}
 	if configured == "" {
+		if os.Getenv("ENV") == "PROD" {
+			slog.Warn("FRONTEND_ORIGINS/ALLOWED_ORIGIN must be set in production")
+			return []string{}
+		}
+
 		return []string{"http://localhost:3000", "http://localhost:3001"}
 	}
 

@@ -26,7 +26,7 @@ func (c *controller) IsFriend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := c.s.Chat.CheckIsFriend(claims.ID, userID)
+	resp, err := c.service.Chat.CheckIsFriend(claims.ID, userID)
 	if err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, "internal error")
 		return
@@ -57,7 +57,7 @@ func (c *controller) SendFriendRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = c.s.Chat.CreateFriendRequest(claims.ID, userID)
+	err = c.service.Chat.CreateFriendRequest(claims.ID, userID)
 	if err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, "internal error")
 		return
@@ -77,7 +77,7 @@ func (c *controller) GetFriendRequests(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	requests, err := c.s.Chat.GetFriendRequests(claims.ID)
+	requests, err := c.service.Chat.GetFriendRequests(claims.ID)
 	if err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, "internal error")
 		return
@@ -104,7 +104,7 @@ func (c *controller) AcceptFriendRequest(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	err = c.s.Chat.AcceptFriendRequest(userID, claims.ID)
+	err = c.service.Chat.AcceptFriendRequest(userID, claims.ID)
 	if err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, "internal error")
 		return
@@ -130,7 +130,7 @@ func (c *controller) RejectFriendRequest(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	err = c.s.Chat.RejecttFriendRequest(userID, claims.ID)
+	err = c.service.Chat.RejecttFriendRequest(userID, claims.ID)
 	if err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, "internal error")
 		return
@@ -152,7 +152,7 @@ func (c *controller) IsFriendRequestSent(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	resp, err := c.s.Chat.CheckIsFriendRequestSent(claims.ID, toUserID)
+	resp, err := c.service.Chat.CheckIsFriendRequestSent(claims.ID, toUserID)
 	if err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, "internal error")
 		return
@@ -183,7 +183,7 @@ func (c *controller) IsRequestReceived(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := c.s.Chat.CheckIsFriendRequestReceived(userID, claims.ID)
+	resp, err := c.service.Chat.CheckIsFriendRequestReceived(userID, claims.ID)
 	if err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, "internal error")
 		return

@@ -80,14 +80,15 @@ function ChatScreen({ toID, username }: { toID: string; username: string }) {
     }
 
     let cancelled = false;
+    let reconnectTimeout: NodeJS.Timeout | null = null;
     cursorRef.current = "";
     historyLoadedRef.current = false;
     pendingRealtimeMessagesRef.current = [];
     setMessages([]);
     setHasMore(false);
 
-	    axios
-	      .get<ChatMessagesResponse>(`${API_BASE_URL}/message/view`, {
+    axios
+      .get<ChatMessagesResponse>(`${API_BASE_URL}/message/view`, {
         params: { toID: toID, limit: pageSize },
         headers: {
           Authorization: token ? `Bearer ${token}` : "",
@@ -114,20 +115,39 @@ function ChatScreen({ toID, username }: { toID: string; username: string }) {
         if (!cancelled) setLoading(false);
       });
 
-	    ws.current = new WebSocket(`${WS_BASE_URL}/ws/${currentUserID}?token=${token}`);
+    function setupWebSocket() {
+      if (cancelled || !token || !currentUserID) return;
+      ws.current = new WebSocket(`${WS_BASE_URL}/ws/${currentUserID}`, [token]);
 
-    ws.current.onmessage = (event) => {
-      for (const frame of String(event.data).split("\n")) {
-        try {
-          appendRealtimeMessage(JSON.parse(frame) as ChatMessage);
-        } catch {
-          // Ignore malformed frames without breaking the websocket listener.
+      ws.current.onmessage = (event) => {
+        for (const frame of String(event.data).split("\n")) {
+          try {
+            appendRealtimeMessage(JSON.parse(frame) as ChatMessage);
+          } catch {
+            // Ignore malformed frames without breaking the websocket listener.
+          }
         }
-      }
-    };
+      };
+
+      ws.current.onclose = () => {
+        if (cancelled) return; // Don't reconnect if effect is cleaned up
+        // Try to reconnect after 2 seconds
+        reconnectTimeout = setTimeout(() => {
+          setupWebSocket();
+        }, 2000);
+      };
+
+      ws.current.onerror = () => {
+        // On error, close forcibly if not already closed, triggering onclose logic
+        ws.current?.close();
+      };
+    }
+
+    setupWebSocket();
 
     return () => {
       cancelled = true;
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
       ws.current?.close();
       ws.current = null;
     };

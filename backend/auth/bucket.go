@@ -10,12 +10,15 @@ type TokenBucket struct {
 	rate       int        // Number of tokens to add per second
 	tokens     int        // Current number of tokens in the bucket
 	lastRefill time.Time  // Timestamp of the last token refill
+	lastUsed   time.Time  // Timestamp of the last token usage
 	mutex      sync.Mutex // Mutex to protect concurrent access
 }
 
 func (tb *TokenBucket) Take(tokens int) bool {
 	tb.mutex.Lock()
 	defer tb.mutex.Unlock()
+
+	tb.lastUsed = time.Now()
 
 	// First, refill the bucket with tokens based on elapsed time
 	tb.refill()
@@ -44,18 +47,67 @@ func (tb *TokenBucket) refill() {
 	}
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
 func NewTokenBucket(capacity, rate int) *TokenBucket {
 	return &TokenBucket{
 		capacity:   capacity,
 		rate:       rate,
 		tokens:     capacity, // Start with a full bucket
 		lastRefill: time.Now(),
+		lastUsed:   time.Now(),
+	}
+}
+
+type RateLimiter struct {
+	buckets  map[string]*TokenBucket
+	mutex    sync.Mutex
+	capacity int
+	rate     int
+}
+
+func (rl *RateLimiter) Allow(key string) bool {
+	rl.mutex.Lock()
+
+	bucket, exists := rl.buckets[key]
+	if !exists {
+		bucket = NewTokenBucket(rl.capacity, rl.rate)
+		rl.buckets[key] = bucket
+	}
+
+	rl.mutex.Unlock()
+
+	return bucket.Take(1)
+}
+
+func (rl *RateLimiter) Cleanup(inactiveFor time.Duration) {
+	rl.mutex.Lock()
+	defer rl.mutex.Unlock()
+
+	for key, bucket := range rl.buckets {
+		bucket.mutex.Lock()
+		lastUsed := bucket.lastUsed
+		bucket.mutex.Unlock()
+
+		if time.Since(lastUsed) > inactiveFor {
+			delete(rl.buckets, key)
+		}
+	}
+}
+
+func (rl *RateLimiter) StartCleanUp(interval, inactiveFor time.Duration) {
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+
+		for range ticker.C {
+			rl.Cleanup(inactiveFor)
+		}
+	}()
+}
+
+func NewRateLimiter(capacity, rate int) *RateLimiter {
+	return &RateLimiter{
+		buckets:  make(map[string]*TokenBucket),
+		capacity: capacity,
+		rate:     rate,
 	}
 }

@@ -1,12 +1,11 @@
 import { Alert, Box, Button, Typography } from "@mui/material";
 import LogoutIcon from "@mui/icons-material/Logout";
-import { setPvtKey, setToken } from "../token/token";
+import { setToken } from "../token/token";
 import { STRINGS } from "./keys";
 import { containedButton, panelCard } from "./styles";
 
 function signout() {
   setToken(null);
-  setPvtKey(null);
   window.location.reload();
 }
 

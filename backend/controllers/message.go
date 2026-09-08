@@ -16,11 +16,6 @@ import (
 )
 
 func (c *controller) CreateMessage(w http.ResponseWriter, r *http.Request) {
-	if !c.bucket.Take(1) {
-		utils.WriteError(w, http.StatusTooManyRequests, "Too many requests")
-		return
-	}
-
 	toID := r.URL.Query().Get("toID")
 	if toID == "" {
 		utils.WriteError(w, http.StatusBadRequest, "empty query params userID")
@@ -44,10 +39,17 @@ func (c *controller) CreateMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	key := "user:" + claims.ID
+
+	if !c.messageLimiter.Allow(key) {
+		utils.WriteError(w, http.StatusTooManyRequests, "rate limit exceeded")
+		return
+	}
+
 	message.FromUserID = claims.ID
 	message.ToUserID = toID
 
-	err = c.s.Chat.CreateMessage(&message)
+	err = c.service.Chat.CreateMessage(&message)
 	if err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, "internal error")
 		return
@@ -70,7 +72,7 @@ func (c *controller) CreateMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = c.s.Redis.PublishMessage(r.Context(), pubMsgEvent)
+	err = c.service.Redis.PublishMessage(r.Context(), pubMsgEvent)
 	if err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, "internal error")
 		return
@@ -110,7 +112,7 @@ func (c *controller) GetMessages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	messages, err := c.s.Chat.GetMyMessages(claims.ID, toID, limit, cursor)
+	messages, err := c.service.Chat.GetMyMessages(claims.ID, toID, limit, cursor)
 	if err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, "internal error")
 		return

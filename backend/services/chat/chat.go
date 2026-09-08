@@ -15,6 +15,7 @@ type Chat interface {
 	CreateUser(user *e.User) error
 	LoginUser(username, password string) (string, error)
 	GetAllUsers(username string) ([]*p.Users, error)
+	GetUserByUsername(username string) (*e.User, error)
 
 	//message
 	CreateMessage(message *e.Message) error
@@ -28,6 +29,11 @@ type Chat interface {
 	RejecttFriendRequest(userAID, userBID string) error
 	CheckIsFriendRequestSent(userAID, userBID string) (bool, error)
 	CheckIsFriendRequestReceived(userAID, UserBID string) (bool, error)
+
+	// session
+	CreateSession(session *e.Session) error
+	UpdateSessionRefreshToken(ID, token string) error
+	GetSessionByRefreshToken(token string) (*e.Session, error)
 }
 
 func New(m *models.Model) Chat {

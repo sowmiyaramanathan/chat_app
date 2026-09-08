@@ -75,10 +75,13 @@ func Run() {
 		}
 	}()
 
+	b := auth.NewTokenBucket(envInt("RATE_LIMIT_CAPACITY", 5), envInt("RATE_LIMIT_RATE", 2))
+	rl := auth.NewRateLimiter(100, 50)
+	rl.StartCleanUp(1*time.Minute, 10*time.Minute)
+
 	m := models.New(Db)
 	s := services.New(m, ws, redisClient)
-	b := auth.NewTokenBucket(envInt("RATE_LIMIT_CAPACITY", 5), envInt("RATE_LIMIT_RATE", 2))
-	c := controllers.New(s, b)
+	c := controllers.New(s, b, rl)
 
 	r := routes.InitializeRoutes(c)
 

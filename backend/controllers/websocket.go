@@ -33,7 +33,13 @@ func websocketOrigins() []string {
 	if configured == "" {
 		configured = os.Getenv("ALLOWED_ORIGIN")
 	}
+
 	if configured == "" {
+		if os.Getenv("ENV") == "PROD" {
+			slog.Warn("FRONTEND_ORIGINS/ALLOWED_ORIGIN must be set in production")
+			return []string{}
+		}
+
 		return []string{"http://localhost:3000", "http://localhost:3001"}
 	}
 
@@ -45,14 +51,15 @@ func websocketOrigins() []string {
 }
 
 func (c *controller) HandleConnection(w http.ResponseWriter, r *http.Request) {
-	connectedUserID := chi.URLParam(r, "userID")
-	if connectedUserID == "" {
-		utils.WriteError(w, http.StatusBadRequest, "empty URL params user")
-		return
+	clientProtocols := websocket.Subprotocols(r)
+
+	var tokenString string
+
+	if len(clientProtocols) > 0 {
+		tokenString = clientProtocols[0]
 	}
 
 	// 1. AUTHENTICATION & JWT CLAIM VALIDATION
-	tokenString := r.URL.Query().Get("token")
 	if tokenString == "" {
 		utils.WriteError(w, http.StatusBadRequest, "empty query params token")
 		return
@@ -63,6 +70,14 @@ func (c *controller) HandleConnection(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil || token == nil {
 		utils.WriteError(w, http.StatusUnauthorized, "invalid token")
+		return
+	}
+
+	upgrader.Subprotocols = []string{tokenString}
+
+	connectedUserID := chi.URLParam(r, "userID")
+	if connectedUserID == "" {
+		utils.WriteError(w, http.StatusBadRequest, "empty URL params user")
 		return
 	}
 
@@ -86,5 +101,5 @@ func (c *controller) HandleConnection(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	c.s.CS.RunWebsocket(conn, connectedUserID)
+	c.service.CS.RunWebsocket(conn, connectedUserID)
 }

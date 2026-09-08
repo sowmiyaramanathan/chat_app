@@ -32,6 +32,11 @@ type Model interface {
 	RejectRequest(userAID, userBID string) error
 	IsRequestSent(userAID, userBID string) (bool, error)
 	IsRequestReceived(userAID, userBID string) (bool, error)
+
+	// session
+	CreateSession(session *e.Session) error
+	UpdateSessionRefreshToken(ID, token string) error
+	GetSessionByRefreshToken(token string) (*e.Session, error)
 }
 
 func New(Db *gorm.DB) Model {

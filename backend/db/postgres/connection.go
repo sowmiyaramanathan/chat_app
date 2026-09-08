@@ -17,32 +17,34 @@ import (
 var sqlDB *sql.DB
 
 func ConnectDatabase() *gorm.DB {
-	Dbhost := os.Getenv("DB_HOST")
-	Dbport := os.Getenv("DB_PORT")
-	DbUser := os.Getenv("DB_USER")
-	Dbname := os.Getenv("DB_NAME")
-	Dbpassword := os.Getenv("DB_PASSWORD")
-	Dbdriver := os.Getenv("DB_DRIVER")
-
-	DBURL := fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=disable password=%s", Dbhost, Dbport, DbUser, Dbname, Dbpassword)
-
 	var logLevel logger.LogLevel
+	sslMode := "disable"
 
 	if os.Getenv("ENV") == "PROD" {
 		logLevel = logger.Warn
+		sslMode = "require"
 	} else {
 		logLevel = logger.Info
 	}
 
-	Db, err := gorm.Open(postgres.Open(DBURL), &gorm.Config{
+	dbHost := os.Getenv("DB_HOST")
+	dbPort := os.Getenv("DB_PORT")
+	dbUser := os.Getenv("DB_USER")
+	dbName := os.Getenv("DB_NAME")
+	dbPassword := os.Getenv("DB_PASSWORD")
+	dbDriver := os.Getenv("DB_DRIVER")
+	dbURL := fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=%s password=%s", dbHost, dbPort, dbUser, dbName, sslMode, dbPassword)
+
+	Db, err := gorm.Open(postgres.Open(dbURL), &gorm.Config{
 		Logger: logger.Default.LogMode(logLevel),
 	})
 	if err != nil {
-		slog.Error("database connection failed", "driver", Dbdriver, "error", err)
+		slog.Error("database connection failed", "driver", dbDriver, "error", err)
 		os.Exit(1)
-	} else {
-		slog.Info("database connected", "driver", Dbdriver)
 	}
+
+	slog.Info("database connected", "driver", dbDriver)
+
 	Db.AutoMigrate(&e.User{}, &e.Message{}, &e.Friends{})
 
 	sqlDB, err = Db.DB()
@@ -50,6 +52,7 @@ func ConnectDatabase() *gorm.DB {
 		slog.Error("failed to get database connection pool", "error", err)
 		os.Exit(1)
 	}
+
 	sqlDB.SetMaxOpenConns(100)
 	metrics.StartRuntimeSampler(sqlDB)
 

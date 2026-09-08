@@ -5,7 +5,7 @@ import { getTheme } from "../../components/theme";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import axios from "axios";
-import { getTokenExpiry, setPvtKey, setToken } from "../../token/token";
+import { getTokenExpiry, setToken } from "../../token/token";
 
 const ProtectedRoutes = ["/user/profile", "/user/chats", "/user/requests"];
 
@@ -26,7 +26,6 @@ export default function App({ Component, pageProps }: AppProps) {
   useEffect(() => {
     const expireSession = () => {
       setToken(null);
-      setPvtKey(null);
       setPushed(false);
       if (router.pathname !== "/user/signin") {
         void router.replace("/user/signin");

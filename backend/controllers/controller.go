@@ -7,14 +7,17 @@ import (
 )
 
 type controller struct {
-	bucket *auth.TokenBucket
-	s      services.Service
+	service services.Service
+
+	bucket         *auth.TokenBucket
+	messageLimiter *auth.RateLimiter
 }
 
 type Controller interface {
 	//user
 	RegisterUser(w http.ResponseWriter, r *http.Request)
 	LoginUser(w http.ResponseWriter, r *http.Request)
+	RefreshToken(w http.ResponseWriter, r *http.Request)
 	Profile(w http.ResponseWriter, r *http.Request)
 	GetAllUsers(w http.ResponseWriter, r *http.Request)
 
@@ -35,9 +38,10 @@ type Controller interface {
 	HandleConnection(w http.ResponseWriter, r *http.Request)
 }
 
-func New(s services.Service, b *auth.TokenBucket) Controller {
+func New(s services.Service, b *auth.TokenBucket, rl *auth.RateLimiter) Controller {
 	return &controller{
-		s:      s,
-		bucket: b,
+		service:        s,
+		bucket:         b,
+		messageLimiter: rl,
 	}
 }

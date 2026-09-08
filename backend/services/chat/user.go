@@ -69,3 +69,12 @@ func (c *chat) GetAllUsers(username string) ([]*p.Users, error) {
 
 	return users, nil
 }
+
+func (c *chat) GetUserByUsername(username string) (*e.User, error) {
+	user, err := c.m.GetUserByUsername(username)
+	if err != nil {
+		return nil, err
+	}
+
+	return user, nil
+}
