@@ -19,7 +19,6 @@ type Model interface {
 	GetUserByUsername(username string) (*e.User, error)
 	GetUserByMobilenumber(number string) (*e.User, error)
 	GetUsers(username string) ([]*p.Users, error)
-	GetPublicKey(userID string) (string, error)
 
 	//message
 	SaveMessage(message *e.Message) (*e.Message, error)

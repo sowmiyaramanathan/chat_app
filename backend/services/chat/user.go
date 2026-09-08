@@ -69,11 +69,3 @@ func (c *chat) GetAllUsers(username string) ([]*p.Users, error) {
 
 	return users, nil
 }
-
-func (c *chat) GetPublicKey(userID string) (string, error) {
-	pubKey, err := c.m.GetPublicKey(userID)
-	if err != nil {
-		return "", err
-	}
-	return pubKey, nil
-}

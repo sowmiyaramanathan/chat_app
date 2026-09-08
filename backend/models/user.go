@@ -48,12 +48,3 @@ func (m *model) GetUsers(username string) ([]*p.Users, error) {
 	}
 	return users, nil
 }
-
-func (m *model) GetPublicKey(userID string) (string, error) {
-	user := &e.User{}
-	err := m.Db.Model(&e.User{}).Where("id = ?", userID).Take(user).Error
-	if err != nil {
-		return "", err
-	}
-	return user.PubKey, nil
-}

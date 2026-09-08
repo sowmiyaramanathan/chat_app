@@ -6,14 +6,6 @@ export const setToken = (token: string | null) => {
   }
 };
 
-export const setPvtKey = (key: string | null) => {
-  if (key) {
-    localStorage.setItem("privateKey", key);
-  } else {
-    localStorage.removeItem("privateKey");
-  }
-};
-
 interface TokenPayload {
   userID?: string | number;
   sub?: string | number;

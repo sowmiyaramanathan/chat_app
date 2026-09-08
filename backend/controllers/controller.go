@@ -17,7 +17,6 @@ type Controller interface {
 	LoginUser(w http.ResponseWriter, r *http.Request)
 	Profile(w http.ResponseWriter, r *http.Request)
 	GetAllUsers(w http.ResponseWriter, r *http.Request)
-	GetPublicKey(w http.ResponseWriter, r *http.Request)
 
 	//message
 	CreateMessage(w http.ResponseWriter, r *http.Request)

@@ -118,20 +118,3 @@ func (c *controller) GetAllUsers(w http.ResponseWriter, r *http.Request) {
 	data := users
 	json.NewEncoder(w).Encode(data)
 }
-
-func (c *controller) GetPublicKey(w http.ResponseWriter, r *http.Request) {
-	userID := r.URL.Query().Get("userID")
-	if userID == "" {
-		utils.WriteError(w, http.StatusBadRequest, "empty query params userID")
-		return
-	}
-
-	publicKey, err := c.s.Chat.GetPublicKey(userID)
-	if err != nil {
-		utils.WriteError(w, http.StatusInternalServerError, "internal error")
-		return
-	}
-
-	data := publicKey
-	json.NewEncoder(w).Encode(data)
-}

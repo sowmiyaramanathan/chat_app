@@ -15,7 +15,6 @@ type Chat interface {
 	CreateUser(user *e.User) error
 	LoginUser(username, password string) (string, error)
 	GetAllUsers(username string) ([]*p.Users, error)
-	GetPublicKey(userID string) (string, error)
 
 	//message
 	CreateMessage(message *e.Message) error

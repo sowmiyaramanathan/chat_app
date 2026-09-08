@@ -18,8 +18,6 @@ export default function ContactItem({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-
-  console.log("username:", contact.UserName)
   const handleClick = () => {
     if (loading) return;
     setLoading(true);

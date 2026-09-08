@@ -40,7 +40,6 @@ func InitializeRoutes(c controllers.Controller) *chi.Mux {
 			r.Use(jwtauth.Authenticator(auth.TokenAuth))
 			r.Get("/profile", c.Profile)
 			r.Get("/users", c.GetAllUsers)
-			r.Get("/getPublicKey", c.GetPublicKey)
 		})
 	})
 
