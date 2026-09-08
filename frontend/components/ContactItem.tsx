@@ -4,6 +4,7 @@ import { useState } from "react";
 import { UserSummary } from "./types";
 import { getApiErrorMessage } from "./api";
 import { STRINGS } from "./keys";
+import { API_BASE_URL } from "./config";
 
 export default function ContactItem({
   contact,
@@ -26,7 +27,7 @@ export default function ContactItem({
 
     axios
       .get(
-        `http://localhost:8000/friends/isFriend?userID=${contact.ID}`,
+        `${API_BASE_URL}/friends/isFriend?userID=${contact.ID}`,
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,

@@ -11,6 +11,7 @@ import { CustomTextField } from "./CustomComponets";
 import { STRINGS } from "./keys";
 import { containedButton, outlinedButton, panelCard } from "./styles";
 import { getApiErrorCode, getApiErrorMessage } from "./api";
+import { API_BASE_URL } from "./config";
 
 export default function Signup() {
   const router = useRouter();
@@ -51,7 +52,7 @@ export default function Signup() {
       onSubmit={async (values, { setFieldError }) => {
         setSubmitError(null);
         try {
-          await axios.post("http://localhost:8000/user/register", {
+          await axios.post(`${API_BASE_URL}/user/register`, {
             Name: values.name,
             Username: values.username,
             mobileNumber: values.mobileNumber,

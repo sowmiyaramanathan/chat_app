@@ -1,4 +1,5 @@
 import axios from "axios";
+import { API_BASE_URL } from "./config";
 
 export interface ApiErrorResponse {
   error?: string;
@@ -21,7 +22,7 @@ export function getApiErrorMessage(error: unknown, fallback: string): string {
 
 export function acceptRequest(id: string) {
 	return axios.put(
-		`http://localhost:8000/friends/acceptRequest?userID=${id}`,
+		`${API_BASE_URL}/friends/acceptRequest?userID=${id}`,
 		null,
 		{ headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
 	);
@@ -29,14 +30,14 @@ export function acceptRequest(id: string) {
 
 export function rejectRequest(id: string) {
 	return axios.put(
-		`http://localhost:8000/friends/rejectRequest?userID=${id}`,
+		`${API_BASE_URL}/friends/rejectRequest?userID=${id}`,
 		null,
 		{ headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
 	);
 }
 
 export const fetchRequests = () => {
-  return axios.get("http://localhost:8000/friends/getFriendRequests", {
+	return axios.get(`${API_BASE_URL}/friends/getFriendRequests`, {
     headers: {
       Authorization: `Bearer ${localStorage.getItem("token")}`,
     },

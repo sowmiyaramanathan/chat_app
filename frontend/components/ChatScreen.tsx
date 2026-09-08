@@ -14,6 +14,7 @@ import { ChatMessage, ChatMessagesResponse } from "./types";
 import { STRINGS } from "./keys";
 import { panelHeader } from "./styles";
 import { getApiErrorMessage } from "./api";
+import { API_BASE_URL, WS_BASE_URL } from "./config";
 import { getTokenUserID } from "../token/token";
 
 function ChatScreen({ toID, username }: { toID: string; username: string }) {
@@ -85,8 +86,8 @@ function ChatScreen({ toID, username }: { toID: string; username: string }) {
     setMessages([]);
     setHasMore(false);
 
-    axios
-      .get<ChatMessagesResponse>("http://localhost:8000/message/view", {
+	    axios
+	      .get<ChatMessagesResponse>(`${API_BASE_URL}/message/view`, {
         params: { toID: toID, limit: pageSize },
         headers: {
           Authorization: token ? `Bearer ${token}` : "",
@@ -113,9 +114,7 @@ function ChatScreen({ toID, username }: { toID: string; username: string }) {
         if (!cancelled) setLoading(false);
       });
 
-    ws.current = new WebSocket(
-      `ws://localhost:8000/ws/${currentUserID}?token=${token}`
-    );
+	    ws.current = new WebSocket(`${WS_BASE_URL}/ws/${currentUserID}?token=${token}`);
 
     ws.current.onmessage = (event) => {
       for (const frame of String(event.data).split("\n")) {
@@ -164,7 +163,7 @@ function ChatScreen({ toID, username }: { toID: string; username: string }) {
     setLoadingOlder(true);
     try {
       const response = await axios.get<ChatMessagesResponse>(
-        "http://localhost:8000/message/view",
+        `${API_BASE_URL}/message/view`,
         {
           params: {
             toID: toID,
@@ -209,7 +208,7 @@ function ChatScreen({ toID, username }: { toID: string; username: string }) {
 
     try {
       await axios.post(
-        `http://localhost:8000/message/create?toID=${toID}`,
+        `${API_BASE_URL}/message/create?toID=${toID}`,
         { message: newMessage },
         { headers: { Authorization: `Bearer ${token}` } }
       );

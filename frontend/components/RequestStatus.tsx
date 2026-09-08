@@ -6,6 +6,7 @@ import { acceptRequest, getApiErrorMessage, rejectRequest } from "./api";
 import { UserSummary } from "./types";
 import { STRINGS } from "./keys";
 import { containedButton, emptyState, outlinedButton, panelHeader } from "./styles";
+import { API_BASE_URL } from "./config";
 
 export default function RequestStatus({
   contact,
@@ -24,7 +25,7 @@ export default function RequestStatus({
 
     axios
       .get(
-        `http://localhost:8000/friends/isRequestReceived?userID=${contact.ID}`,
+        `${API_BASE_URL}/friends/isRequestReceived?userID=${contact.ID}`,
         {
           headers: {
             Authorization: "Bearer " + `${localStorage.getItem("token")}`,
@@ -38,7 +39,7 @@ export default function RequestStatus({
         } else {
           axios
             .get(
-              `http://localhost:8000/friends/isRequestSent?userID=${contact.ID}`,
+              `${API_BASE_URL}/friends/isRequestSent?userID=${contact.ID}`,
               {
                 headers: {
                   Authorization: "Bearer " + `${localStorage.getItem("token")}`,
@@ -66,7 +67,7 @@ export default function RequestStatus({
     setError(null);
     axios
       .post(
-        `http://localhost:8000/friends/sendRequest?userID=${contact.ID}`,
+        `${API_BASE_URL}/friends/sendRequest?userID=${contact.ID}`,
         "",
         {
           headers: {

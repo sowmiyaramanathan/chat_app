@@ -4,6 +4,7 @@ import Chats from "../../../../components/Chats";
 import { UserSummary } from "../../../../components/types";
 import { getApiErrorMessage } from "../../../../components/api";
 import { STRINGS } from "../../../../components/keys";
+import { API_BASE_URL } from "../../../../components/config";
 
 export default function chats() {
   const [contacts, setContacts] = useState<UserSummary[]>([]);
@@ -13,7 +14,7 @@ export default function chats() {
     const token =
       typeof window !== "undefined" && localStorage.getItem("token");
     axios
-      .get("http://localhost:8000/user/users", {
+      .get(`${API_BASE_URL}/user/users`, {
         headers: {
           Authorization: "Bearer " + token,
         },
