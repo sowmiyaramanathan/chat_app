@@ -29,18 +29,20 @@ export default function Navbar({
     setHasToken(Boolean(token));
 
     const paths = token
-      ? ["/user/profile", "/user/chats", "/user/requests"]
+      ? ["/user/profile", "/user/chats", "/user/discover", "/user/requests"]
       : ["/", "/user/signup", "/user/signin"];
 
     const currentIndex = router.pathname.startsWith("/user/chats")
       ? 1
+      : router.pathname.startsWith("/user/discover")
+      ? 2
       : paths.indexOf(router.pathname);
     setValue(currentIndex >= 0 ? currentIndex : 0);
   }, [router.pathname]);
 
   const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
     const paths = hasToken
-      ? ["/user/profile", "/user/chats", "/user/requests"]
+      ? ["/user/profile", "/user/chats", "/user/discover", "/user/requests"]
       : ["/", "/user/signup", "/user/signin"];
 
     setValue(newValue);
@@ -90,6 +92,7 @@ export default function Navbar({
       >
         {hasToken && <Tab label={STRINGS.nav.profile} />}
         {hasToken && <Tab label={STRINGS.nav.chats} />}
+        {hasToken && <Tab label="Discover" />}
         {hasToken && <Tab label={STRINGS.nav.requests} />}
 
         {!hasToken && <Tab label={STRINGS.nav.home} />}

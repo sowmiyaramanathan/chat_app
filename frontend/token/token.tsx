@@ -3,7 +3,13 @@ export const setToken = (token: string | null) => {
     localStorage.setItem("token", token);
   } else {
     localStorage.removeItem("token");
+    localStorage.removeItem("refreshToken");
   }
+};
+
+export const setTokens = (token: string, refreshToken: string) => {
+  localStorage.setItem("token", token);
+  localStorage.setItem("refreshToken", refreshToken);
 };
 
 interface TokenPayload {

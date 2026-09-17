@@ -92,3 +92,21 @@ func (m *model) IsRequestReceived(userAID, userBID string) (bool, error) {
 
 	return true, nil
 }
+
+func (m *model) GetMyFriends(userID string, limit int, cursor string) ([]*p.Users, error) {
+	users := []*p.Users{}
+	query := m.Db.Model(&e.User{}).
+		Select("users.id, users.user_name").
+		Joins("INNER JOIN friends ON ((friends.from_user_id = ? AND friends.to_user_id = users.id) OR (friends.to_user_id = ? AND friends.from_user_id = users.id))", userID, userID).
+		Where("friends.friend_status = ?", "accepted").
+		Order("users.id ASC")
+	if cursor != "" {
+		query = query.Where("users.id > ?", cursor)
+	}
+	err := query.Limit(limit + 1).Find(&users).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return users, nil
+}

@@ -1,11 +1,13 @@
 package postgres
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log/slog"
 	"os"
 
+	"backend/apperrors"
 	e "backend/entities"
 	"backend/metrics"
 
@@ -26,6 +28,9 @@ func ConnectDatabase() *gorm.DB {
 	} else {
 		logLevel = logger.Info
 	}
+	if configuredSSLMode := os.Getenv("DB_SSLMODE"); configuredSSLMode != "" {
+		sslMode = configuredSSLMode
+	}
 
 	dbHost := os.Getenv("DB_HOST")
 	dbPort := os.Getenv("DB_PORT")
@@ -45,7 +50,10 @@ func ConnectDatabase() *gorm.DB {
 
 	slog.Info("database connected", "driver", dbDriver)
 
-	Db.AutoMigrate(&e.User{}, &e.Message{}, &e.Friends{})
+	if err := Db.AutoMigrate(&e.User{}, &e.Message{}, &e.Friends{}, &e.Session{}); err != nil {
+		slog.Error("database migration failed", "error", err)
+		os.Exit(1)
+	}
 
 	sqlDB, err = Db.DB()
 	if err != nil {
@@ -60,5 +68,16 @@ func ConnectDatabase() *gorm.DB {
 }
 
 func Ping() error {
+	if sqlDB == nil {
+		return apperrors.ErrEmptySqlClient
+	}
+
 	return sqlDB.Ping()
+}
+
+func PingContext(ctx context.Context) error {
+	if sqlDB == nil {
+		return apperrors.ErrEmptySqlClient
+	}
+	return sqlDB.PingContext(ctx)
 }

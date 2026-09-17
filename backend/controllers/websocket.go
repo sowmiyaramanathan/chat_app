@@ -72,6 +72,10 @@ func (c *controller) HandleConnection(w http.ResponseWriter, r *http.Request) {
 		utils.WriteError(w, http.StatusUnauthorized, "invalid token")
 		return
 	}
+	if tokenType, ok := token.Get("tokenType"); !ok || tokenType != "access" {
+		utils.WriteError(w, http.StatusUnauthorized, "invalid token")
+		return
+	}
 
 	upgrader.Subprotocols = []string{tokenString}
 

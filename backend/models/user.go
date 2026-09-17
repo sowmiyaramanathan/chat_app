@@ -40,9 +40,17 @@ func (m *model) GetUserByMobilenumber(number string) (*e.User, error) {
 	return user, nil
 }
 
-func (m *model) GetUsers(username string) ([]*p.Users, error) {
+func (m *model) GetNonFriends(userID string, limit int, cursor string) ([]*p.Users, error) {
 	users := []*p.Users{}
-	err := m.Db.Model(&p.Users{}).Select("id", "user_name").Where("user_name != ?", username).Limit(100).Find(&users).Error
+	query := m.Db.Model(&e.User{}).
+		Select("users.id, users.user_name").
+		Where("users.id != ?", userID).
+		Where("NOT EXISTS (SELECT 1 FROM friends WHERE (friends.from_user_id = users.id AND friends.to_user_id = ?) OR (friends.to_user_id = users.id AND friends.from_user_id = ?))", userID, userID).
+		Order("users.id ASC")
+	if cursor != "" {
+		query = query.Where("users.id > ?", cursor)
+	}
+	err := query.Limit(limit + 1).Find(&users).Error
 	if err != nil {
 		return nil, err
 	}

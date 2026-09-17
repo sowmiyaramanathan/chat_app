@@ -25,8 +25,8 @@ const (
 	// Interval for sending ping messages (must be less than pongWait)
 	pingPeriod = (pongWait * 9) / 10
 
-	// Maximum message size allowed from client (e.g., 512KB)
-	maxMessageSize = 512 * 1024
+	// Clients only receive server-authoritative events; data frames are ignored.
+	maxMessageSize = 1024
 )
 
 // HandleConnection handles new incoming HTTP connections and upgrades them to WebSockets
@@ -187,7 +187,7 @@ func readPump(c *entities.Client) {
 	})
 
 	for {
-		_, payload, err := c.Conn.ReadMessage()
+		_, _, err := c.Conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err,
 				websocket.CloseGoingAway,
@@ -198,28 +198,6 @@ func readPump(c *entities.Client) {
 			break
 		}
 
-		// Decode the message to read recipient details
-		var wsMsg entities.WebSocketMessage
-		if err := json.Unmarshal(payload, &wsMsg); err != nil {
-			slog.Warn("invalid websocket message", "user_id", c.ID, "error", err)
-			continue
-		}
-
-		// Routing verification (ensure sender claim matches payload)
-		senderKey := fmt.Sprintf("%s", wsMsg.FromUserID)
-		if senderKey != c.ID {
-			slog.Warn("websocket sender identity mismatch", "connection_user_id", c.ID, "claimed_user_id", wsMsg.FromUserID)
-			continue
-		}
-
-		// Route message via the hub's directMessage channel
-		recipientKey := fmt.Sprintf("%s", wsMsg.ToUserID)
-		c.Hub.DirectMessage <- entities.DirectMessage{
-			RecipientID: recipientKey,
-			SenderID:    senderKey,
-			Payload:     payload,
-			EnqueuedAt:  time.Now(),
-		}
 	}
 }
 

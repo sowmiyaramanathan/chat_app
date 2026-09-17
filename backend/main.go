@@ -1,6 +1,7 @@
 package main
 
 import (
+	"backend/auth"
 	"backend/server"
 	"log/slog"
 	"os"
@@ -10,12 +11,12 @@ import (
 
 func main() {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
-	err := godotenv.Load("../.env")
-	if err != nil {
-		slog.Error("failed to load environment", "error", err)
-		os.Exit(1)
-	} else {
+	if err := godotenv.Load("../.env"); err == nil {
 		slog.Info("environment loaded")
+	}
+	if err := auth.Init(); err != nil {
+		slog.Error("authentication configuration failed", "error", err)
+		os.Exit(1)
 	}
 
 	server.Run()

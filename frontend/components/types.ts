@@ -3,6 +3,14 @@ export interface UserSummary {
   UserName: string;
 }
 
+export interface UserPage {
+  Users: UserSummary[];
+  PageInfo: {
+    HasNextPage: boolean;
+    EndCursor: string;
+  };
+}
+
 export interface ChatMessage {
   ID: number;
   FromUserID: string;

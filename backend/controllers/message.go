@@ -6,8 +6,10 @@ import (
 	e "backend/entities"
 	"backend/entities/packet"
 	"backend/utils"
+	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
@@ -22,6 +24,7 @@ func (c *controller) CreateMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	r.Body = http.MaxBytesReader(w, r.Body, 16<<10)
 	var message e.Message
 	err := json.NewDecoder(r.Body).Decode(&message)
 	if err != nil {
@@ -40,7 +43,6 @@ func (c *controller) CreateMessage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	key := "user:" + claims.ID
-
 	if !c.messageLimiter.Allow(key) {
 		utils.WriteError(w, http.StatusTooManyRequests, "rate limit exceeded")
 		return
@@ -51,32 +53,46 @@ func (c *controller) CreateMessage(w http.ResponseWriter, r *http.Request) {
 
 	err = c.service.Chat.CreateMessage(&message)
 	if err != nil {
-		utils.WriteError(w, http.StatusInternalServerError, "internal error")
+		if errors.Is(err, apperrors.ErrNotAFriend) {
+			utils.WriteError(w, http.StatusForbidden, "not friends")
+			return
+		}
+		if errors.Is(err, apperrors.ErrInvalidMessage) {
+			utils.WriteError(w, http.StatusUnprocessableEntity, "invalid message")
+			return
+		}
+		utils.WriteError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	pubMsgEvent := packet.MessageEvent{
-		EventID:     uuid.NewString(),
-		MessageID:   strconv.FormatUint(uint64(message.ID), 10),
-		SenderID:    message.FromUserID,
-		RecipientID: message.ToUserID,
-		CreatedAt:   time.Now().UTC(),
-	}
-	pubMsgEvent.Payload, err = json.Marshal(e.WebSocketMessage{
-		Message:    message.Message,
-		FromUserID: message.FromUserID,
-		ToUserID:   message.ToUserID,
-	})
-	if err != nil {
-		utils.WriteError(w, http.StatusInternalServerError, "internal error")
-		return
-	}
+	go func(message *e.Message) {
+		// The request context is canceled when this handler returns. Publishing is
+		// intentionally best-effort after persistence, so it needs its own deadline.
+		publishCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
 
-	err = c.service.Redis.PublishMessage(r.Context(), pubMsgEvent)
-	if err != nil {
-		utils.WriteError(w, http.StatusInternalServerError, "internal error")
-		return
-	}
+		pubMsgEvent := packet.MessageEvent{
+			EventID:     uuid.NewString(),
+			MessageID:   strconv.FormatUint(uint64(message.ID), 10),
+			SenderID:    message.FromUserID,
+			RecipientID: message.ToUserID,
+			CreatedAt:   time.Now().UTC(),
+		}
+		payload, marshalErr := json.Marshal(e.WebSocketMessage{
+			Message:    message.Message,
+			FromUserID: message.FromUserID,
+			ToUserID:   message.ToUserID,
+		})
+		if marshalErr != nil {
+			slog.Warn("failed to marshal publish message event", "error", marshalErr)
+			return
+		}
+		pubMsgEvent.Payload = payload
+
+		if publishErr := c.service.Redis.PublishMessage(publishCtx, pubMsgEvent); publishErr != nil {
+			slog.Warn("failed to publish message event to redis", "event_id", pubMsgEvent.EventID, "error", publishErr)
+		}
+	}(&message)
 
 	w.Write([]byte("Message Sent"))
 }
@@ -93,6 +109,13 @@ func (c *controller) GetMessages(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		utils.WriteError(w, http.StatusBadRequest, "invalid query params")
 		return
+	}
+
+	if limit < 1 {
+		utils.WriteError(w, http.StatusBadRequest, "invalid query params")
+		return
+	} else if limit > 50 {
+		limit = 50
 	}
 
 	cursorStr := r.URL.Query().Get("cursor")

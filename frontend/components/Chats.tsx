@@ -8,7 +8,23 @@ import { UserSummary } from "./types";
 import { STRINGS } from "./keys";
 import { emptyState, pageContainer, panelCard } from "./styles";
 
-export default function Chats({ contacts, contactsError }: { contacts: UserSummary[]; contactsError?: string | null }) {
+export default function Chats({
+  contacts,
+  contactsError,
+  title,
+  knownFriend,
+  hasNextPage,
+  loadingMore,
+  onLoadMore,
+}: {
+  contacts: UserSummary[];
+  contactsError?: string | null;
+  title?: string;
+  knownFriend?: boolean;
+  hasNextPage?: boolean;
+  loadingMore?: boolean;
+  onLoadMore?: () => void;
+}) {
   const [selectedContact, setSelectedContact] = useState<UserSummary | null>(
     null
   );
@@ -41,6 +57,11 @@ export default function Chats({ contacts, contactsError }: { contacts: UserSumma
             selectedContactId={selectedContact?.ID ?? null}
             onContactSelect={handleContactSelect}
             error={contactsError}
+            title={title}
+            knownFriend={knownFriend}
+            hasNextPage={hasNextPage}
+            loadingMore={loadingMore}
+            onLoadMore={onLoadMore}
           />
         </Box>
 

@@ -2,33 +2,24 @@ package server
 
 import (
 	"backend/db/postgres"
+	"backend/redis"
 	"backend/utils"
+	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
+	"time"
 )
 
-func pingPostgres(errChan chan<- error) {
-	err := postgres.Ping()
-	if err != nil {
-		errChan <- errors.New("postgres ping failed")
-	}
-}
-
-var checks = []func(chan<- error){
-	pingPostgres,
-}
-
 func Ready(w http.ResponseWriter, r *http.Request) {
-	errChan := make(chan error)
-	for _, f := range checks {
-		go f(errChan)
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+	if err := postgres.PingContext(ctx); err != nil {
+		utils.WriteError(w, http.StatusServiceUnavailable, "postgres unavailable")
+		return
 	}
-	for i := 0; i < len(checks); i++ {
-		if err := <-errChan; err != nil {
-			utils.WriteError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
+	if err := redis.PingContext(ctx); err != nil {
+		utils.WriteError(w, http.StatusServiceUnavailable, "redis unavailable")
+		return
 	}
 
 	w.WriteHeader(http.StatusOK)

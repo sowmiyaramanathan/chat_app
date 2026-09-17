@@ -2,6 +2,7 @@ package models
 
 import (
 	e "backend/entities"
+	"time"
 
 	p "backend/entities/packet"
 
@@ -18,13 +19,14 @@ type Model interface {
 	// GetUserById(id uint64) (*e.User, error)
 	GetUserByUsername(username string) (*e.User, error)
 	GetUserByMobilenumber(number string) (*e.User, error)
-	GetUsers(username string) ([]*p.Users, error)
+	GetNonFriends(userID string, limit int, cursor string) ([]*p.Users, error)
 
 	//message
 	SaveMessage(message *e.Message) (*e.Message, error)
 	GetMyMessagesByFromToId(fromId, toId string, limit int, cursor *p.Cursor) ([]*p.Messages, error)
 
 	//friends
+	GetMyFriends(userID string, limit int, cursor string) ([]*p.Users, error)
 	IsFriend(userAID, userBID string) (bool, error)
 	CreateRequest(userAID, userBID string) error
 	GetMyRequests(userID string) ([]*p.Requests, error)
@@ -35,7 +37,7 @@ type Model interface {
 
 	// session
 	CreateSession(session *e.Session) error
-	UpdateSessionRefreshToken(ID, token string) error
+	RotateSessionRefreshToken(ID, currentToken, nextToken string, expiresAt time.Time) (bool, error)
 	GetSessionByRefreshToken(token string) (*e.Session, error)
 }
 

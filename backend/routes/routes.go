@@ -4,6 +4,7 @@ import (
 	"backend/auth"
 	"backend/controllers"
 	"backend/metrics"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -11,15 +12,15 @@ import (
 	"time"
 
 	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/cors"
 	"github.com/go-chi/jwtauth/v5"
-	"github.com/joho/godotenv"
 )
 
 func InitializeRoutes(c controllers.Controller) *chi.Mux {
 	r := chi.NewRouter()
 
-	_ = godotenv.Load("../../.env")
+	r.Use(middleware.Recoverer)
 	r.Use(slogRequestLogger)
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   frontendOrigins(),
@@ -40,7 +41,8 @@ func InitializeRoutes(c controllers.Controller) *chi.Mux {
 			r.Use(jwtauth.Verifier(auth.TokenAuth))
 			r.Use(jwtauth.Authenticator(auth.TokenAuth))
 			r.Get("/profile", c.Profile)
-			r.Get("/users", c.GetAllUsers)
+			r.Get("/friends", c.GetMyFriends)
+			r.Get("/users", c.GetNonFriends)
 		})
 	})
 
@@ -90,6 +92,22 @@ func frontendOrigins() []string {
 		origins[i] = strings.TrimSpace(origins[i])
 	}
 	return origins
+}
+
+func ValidateProductionConfig() error {
+	if os.Getenv("ENV") != "PROD" {
+		return nil
+	}
+	origins := frontendOrigins()
+	if len(origins) == 0 {
+		return fmt.Errorf("FRONTEND_ORIGINS or ALLOWED_ORIGIN must be set in production")
+	}
+	for _, origin := range origins {
+		if strings.Contains(origin, "localhost") {
+			return fmt.Errorf("localhost must not be configured as a production frontend origin")
+		}
+	}
+	return nil
 }
 
 // slogRequestLogger records request metadata without exposing query parameters,

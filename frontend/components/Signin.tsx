@@ -7,7 +7,7 @@ import LoginIcon from "@mui/icons-material/Login";
 import { useState } from "react";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
 import * as Yup from "yup";
-import { setToken } from "../token/token";
+import { setTokens } from "../token/token";
 import { CustomTextField } from "./CustomComponets";
 import { STRINGS } from "./keys";
 import { containedButton, outlinedButton, panelCard } from "./styles";
@@ -39,7 +39,7 @@ export default function Signin() {
             Username: values.username,
             Password: values.password,
           });
-          setToken(response.data.token);
+          setTokens(response.data.token, response.data.refreshToken);
           await router.push("/user/profile");
         } catch (error: unknown) {
           const code = getApiErrorCode(error);

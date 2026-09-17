@@ -5,27 +5,42 @@ import (
 	e "backend/entities"
 	p "backend/entities/packet"
 	"html"
+	"log/slog"
 	"strings"
 
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
 
-func hashPassword(password string) string {
-	bytes, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	return string(bytes)
+func hashPassword(password string) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		slog.Debug("failed to hash password", "error", err)
+		return "", err
+	}
+	return string(bytes), nil
 }
 
-func prepareUser(user *e.User) {
+func prepareUser(user *e.User) error {
 	user.Name = html.EscapeString(strings.TrimSpace(user.Name))
 	user.UserName = html.EscapeString(strings.TrimSpace(user.UserName))
-	user.Password = html.EscapeString(strings.TrimSpace(user.Password))
-	user.Password = hashPassword(user.Password)
+	hashedPassword, err := hashPassword(user.Password)
+	if err != nil {
+		return err
+	}
+
+	user.Password = hashedPassword
+
+	return nil
 }
 
 func (c *chat) CreateUser(user *e.User) error {
-	prepareUser(user)
-	_, err := c.m.GetUserByUsername(user.UserName)
+	err := prepareUser(user)
+	if err != nil {
+		return err
+	}
+
+	_, err = c.m.GetUserByUsername(user.UserName)
 	if err == nil {
 		return apperrors.ErrUserAlreadyExists
 	}
@@ -61,8 +76,8 @@ func (c *chat) LoginUser(username, password string) (ID string, err error) {
 	return user.ID, nil
 }
 
-func (c *chat) GetAllUsers(username string) ([]*p.Users, error) {
-	users, err := c.m.GetUsers(username)
+func (c *chat) GetNonFriends(userID string, limit int, cursor string) ([]*p.Users, error) {
+	users, err := c.m.GetNonFriends(userID, limit, cursor)
 	if err != nil {
 		return nil, err
 	}

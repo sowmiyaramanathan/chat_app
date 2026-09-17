@@ -3,6 +3,7 @@ package controllers
 import (
 	"backend/apperrors"
 	"backend/auth"
+	"backend/entities/packet"
 	"backend/utils"
 	"encoding/json"
 	"errors"
@@ -59,6 +60,14 @@ func (c *controller) SendFriendRequest(w http.ResponseWriter, r *http.Request) {
 
 	err = c.service.Chat.CreateFriendRequest(claims.ID, userID)
 	if err != nil {
+		if errors.Is(err, apperrors.ErrInvalidFriendRequest) {
+			utils.WriteError(w, http.StatusBadRequest, "invalid friend request")
+			return
+		}
+		if errors.Is(err, apperrors.ErrFriendRequestExists) {
+			utils.WriteError(w, http.StatusConflict, "friend request already exists")
+			return
+		}
 		utils.WriteError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
@@ -195,4 +204,41 @@ func (c *controller) IsRequestReceived(w http.ResponseWriter, r *http.Request) {
 	}
 
 	json.NewEncoder(w).Encode(map[string]interface{}{"data": true})
+}
+
+func (c *controller) GetMyFriends(w http.ResponseWriter, r *http.Request) {
+	claims, err := auth.ExtractToken(r)
+	if err != nil {
+		if errors.Is(err, apperrors.ErrInvalidToken) {
+			utils.WriteError(w, http.StatusUnauthorized, "Unauthorized - claims missing")
+			return
+		}
+		utils.WriteError(w, http.StatusInternalServerError, "Failed to extract token")
+		return
+	}
+
+	limit, cursor, err := userPageParams(r)
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, "invalid query params")
+		return
+	}
+
+	users, err := c.service.Chat.GetMyFriends(claims.ID, limit, cursor)
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+
+	json.NewEncoder(w).Encode(userPage(users, limit))
+}
+
+func userPage(users []*packet.Users, limit int) packet.UsersPage {
+	page := packet.UsersPage{Users: users, PageInfo: packet.PageInfo{HasNextPage: len(users) > limit}}
+	if page.PageInfo.HasNextPage {
+		page.Users = users[:limit]
+	}
+	if len(page.Users) > 0 {
+		page.PageInfo.EndCursor = page.Users[len(page.Users)-1].ID
+	}
+	return page
 }

@@ -15,7 +15,6 @@ import (
 	"backend/controllers"
 	"backend/db/postgres"
 	"backend/entities/packet"
-	"backend/metrics"
 	"backend/models"
 	"backend/redis"
 	"backend/routes"
@@ -31,6 +30,10 @@ func Run() {
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	slog.SetDefault(logger)
+	if err := routes.ValidateProductionConfig(); err != nil {
+		slog.Error("invalid production configuration", "error", err)
+		return
+	}
 
 	Db := postgres.ConnectDatabase()
 	sqlDB, err := Db.DB()
@@ -38,21 +41,6 @@ func Run() {
 		slog.Error("failed to get database connection pool", "error", err)
 		return
 	}
-
-	go func() {
-		ticker := time.NewTicker(1 * time.Second)
-		defer ticker.Stop()
-
-		for {
-			select {
-			case <-ticker.C:
-				stats := sqlDB.Stats()
-				slog.Info("database pool metrics", "open", stats.OpenConnections, "in_use", stats.InUse, "idle", stats.Idle, "wait_count", stats.WaitCount, "wait_duration", stats.WaitDuration)
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
 
 	hub := websocket.NewHub()
 
@@ -75,36 +63,27 @@ func Run() {
 		}
 	}()
 
-	b := auth.NewTokenBucket(envInt("RATE_LIMIT_CAPACITY", 5), envInt("RATE_LIMIT_RATE", 2))
-	rl := auth.NewRateLimiter(100, 50)
-	rl.StartCleanUp(1*time.Minute, 10*time.Minute)
+	authLimiter := auth.NewRateLimiter(envInt("AUTH_RATE_LIMIT_CAPACITY", 10), envInt("AUTH_RATE_LIMIT_RATE", 1))
+	messageLimiter := auth.NewRateLimiter(envInt("MESSAGE_RATE_LIMIT_CAPACITY", 100), envInt("MESSAGE_RATE_LIMIT_RATE", 50))
+	authLimiter.StartCleanUp(1*time.Minute, 10*time.Minute)
+	messageLimiter.StartCleanUp(1*time.Minute, 10*time.Minute)
 
 	m := models.New(Db)
 	s := services.New(m, ws, redisClient)
-	c := controllers.New(s, b, rl)
+	c := controllers.New(s, authLimiter, messageLimiter)
 
 	r := routes.InitializeRoutes(c)
 
 	r.Get("/health", Health)
 	r.Get("/ready", Ready)
 
-	go func() {
-		ticker := time.NewTicker(1 * time.Second)
-		defer ticker.Stop()
-
-		for {
-			select {
-			case <-ticker.C:
-				slog.Info("metrics snapshot", "snapshot", metrics.Snapshot())
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
-
 	server := &http.Server{
-		Addr:    ":" + envString("PORT", "8000"),
-		Handler: r,
+		Addr:              ":" + envString("PORT", "8000"),
+		Handler:           r,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      15 * time.Second,
+		IdleTimeout:       60 * time.Second,
 	}
 
 	go func() {

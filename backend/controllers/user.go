@@ -8,17 +8,20 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"net"
 	"net/http"
+	"strconv"
 	"time"
 )
 
 func (c *controller) RegisterUser(w http.ResponseWriter, r *http.Request) {
-	if !c.bucket.Take(1) {
+	if !c.authLimiter.Allow("auth:" + clientIP(r)) {
 		slog.Warn("rate limit exceeded", "method", r.Method, "path", r.URL.Path)
 		utils.WriteError(w, http.StatusTooManyRequests, "Too many requests")
 		return
 	}
 
+	r.Body = http.MaxBytesReader(w, r.Body, 32<<10)
 	var user e.User
 	err := json.NewDecoder(r.Body).Decode(&user)
 	if err != nil {
@@ -44,12 +47,13 @@ func (c *controller) RegisterUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *controller) LoginUser(w http.ResponseWriter, r *http.Request) {
-	if !c.bucket.Take(1) {
+	if !c.authLimiter.Allow("auth:" + clientIP(r)) {
 		slog.Warn("rate limit exceeded", "method", r.Method, "path", r.URL.Path)
 		utils.WriteError(w, http.StatusTooManyRequests, "Too many requests")
 		return
 	}
 
+	r.Body = http.MaxBytesReader(w, r.Body, 32<<10)
 	var user e.User
 	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
 		utils.WriteError(w, http.StatusBadRequest, "invalid json")
@@ -81,12 +85,7 @@ func (c *controller) LoginUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	now := time.Now()
-	session := &e.Session{
-		ID:           userID,
-		Username:     user.UserName,
-		RefreshToken: refreshToken,
-		ExpiresAt:    now.Add(refreshTokenDuration),
-	}
+	session := e.NewSession(userID, user.UserName, refreshToken, now.Add(refreshTokenDuration))
 
 	if err := c.service.Chat.CreateSession(session); err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, "Failed to create session")
@@ -118,7 +117,7 @@ func (c *controller) Profile(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (c *controller) GetAllUsers(w http.ResponseWriter, r *http.Request) {
+func (c *controller) GetNonFriends(w http.ResponseWriter, r *http.Request) {
 	claims, err := auth.ExtractToken(r)
 	if err != nil {
 		if errors.Is(err, apperrors.ErrInvalidToken) {
@@ -129,14 +128,42 @@ func (c *controller) GetAllUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	users, err := c.service.Chat.GetAllUsers(claims.Username)
+	limit, cursor, err := userPageParams(r)
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, "invalid query params")
+		return
+	}
+
+	users, err := c.service.Chat.GetNonFriends(claims.ID, limit, cursor)
 	if err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 
-	data := users
-	json.NewEncoder(w).Encode(data)
+	json.NewEncoder(w).Encode(userPage(users, limit))
+}
+
+func userPageParams(r *http.Request) (int, string, error) {
+	limit := 25
+	if rawLimit := r.URL.Query().Get("limit"); rawLimit != "" {
+		var err error
+		limit, err = strconv.Atoi(rawLimit)
+		if err != nil || limit < 1 {
+			return 0, "", errors.New("invalid limit")
+		}
+	}
+	if limit > 50 {
+		limit = 50
+	}
+	return limit, r.URL.Query().Get("cursor"), nil
+}
+
+func clientIP(r *http.Request) string {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr
+	}
+	return host
 }
 
 func (c *controller) RefreshToken(w http.ResponseWriter, r *http.Request) {
@@ -147,8 +174,17 @@ func (c *controller) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		utils.WriteError(w, http.StatusBadRequest, "Invalid request")
 		return
 	}
+	if req.RefreshToken == "" {
+		utils.WriteError(w, http.StatusBadRequest, "Refresh token is required")
+		return
+	}
 
-	// Validate the refresh token exists and is not expired
+	refreshClaims, err := auth.ValidateRefreshToken(req.RefreshToken)
+	if err != nil {
+		utils.WriteError(w, http.StatusUnauthorized, "Invalid refresh token")
+		return
+	}
+
 	session, err := c.service.Chat.GetSessionByRefreshToken(req.RefreshToken)
 	if err != nil {
 		utils.WriteError(w, http.StatusUnauthorized, "Invalid refresh token")
@@ -158,24 +194,43 @@ func (c *controller) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		utils.WriteError(w, http.StatusUnauthorized, "Refresh token expired")
 		return
 	}
+	if session.UserID != refreshClaims.ID || session.Username != refreshClaims.Username {
+		utils.WriteError(w, http.StatusUnauthorized, "Invalid refresh token")
+		return
+	}
 
-	// Query the user by username from the session
+	// Query the user by username from the session.
 	user, err := c.service.Chat.GetUserByUsername(session.Username)
 	if err != nil {
 		utils.WriteError(w, http.StatusUnauthorized, "User not found for refresh token")
 		return
 	}
 
-	// Create new tokens
-	accessToken, _, err := auth.CreateToken(user.ID, user.UserName)
+	// Rotate the refresh token. The conditional update prevents a refresh token
+	// from being used twice if two requests arrive at the same time.
+	accessToken, nextRefreshToken, err := auth.CreateToken(user.ID, user.UserName)
 	if err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, "Failed to create tokens")
 		return
 	}
+	refreshTokenDuration := 7 * 24 * time.Hour
+	rotated, err := c.service.Chat.RotateSessionRefreshToken(
+		session.ID, req.RefreshToken, nextRefreshToken, time.Now().Add(refreshTokenDuration),
+	)
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, "Failed to refresh token")
+		return
+	}
+	if !rotated {
+		utils.WriteError(w, http.StatusUnauthorized, "Invalid refresh token")
+		return
+	}
 
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status":       "Token refreshed successfully",
-		"token":        accessToken,
-		"refreshToken": req.RefreshToken,
+		"status":                "Token refreshed successfully",
+		"token":                 accessToken,
+		"refreshToken":          nextRefreshToken,
+		"accessTokenExpiresIn":  int((15 * time.Minute).Seconds()),
+		"refreshTokenExpiresIn": int(refreshTokenDuration.Seconds()),
 	})
 }

@@ -1,4 +1,4 @@
-import { Alert, Box, Typography } from "@mui/material";
+import { Alert, Box, Button, CircularProgress, Typography } from "@mui/material";
 import ContactItem from "./ContactItem";
 import { UserSummary } from "./types";
 import { STRINGS } from "./keys";
@@ -9,17 +9,27 @@ export default function ContactList({
   selectedContactId,
   onContactSelect,
   error,
+  title = STRINGS.chat.contactsTitle,
+  knownFriend,
+  hasNextPage = false,
+  loadingMore = false,
+  onLoadMore,
 }: {
   contacts: UserSummary[];
   selectedContactId: string | null;
   onContactSelect: (contact: UserSummary, friend: boolean) => void;
   error?: string | null;
+  title?: string;
+  knownFriend?: boolean;
+  hasNextPage?: boolean;
+  loadingMore?: boolean;
+  onLoadMore?: () => void;
 }) {
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
       <Box sx={{ ...panelHeader, display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 1 }}>
         <Typography variant="h6" color="text.primary" sx={{ fontWeight: 700 }}>
-          {STRINGS.chat.contactsTitle}
+          {title}
         </Typography>
         <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
           {contacts.length} {contacts.length === 1 ? "person" : "people"}
@@ -51,8 +61,16 @@ export default function ContactList({
               contact={contact}
               isSelected={selectedContactId === contact.ID}
               onSelect={onContactSelect}
+              friend={knownFriend}
             />
           ))
+        )}
+        {hasNextPage && (
+          <Box sx={{ p: 1.5, display: "flex", justifyContent: "center" }}>
+            <Button onClick={onLoadMore} disabled={loadingMore} size="small">
+              {loadingMore ? <CircularProgress size={18} /> : "Load more"}
+            </Button>
+          </Box>
         )}
       </Box>
     </Box>

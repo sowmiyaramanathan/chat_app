@@ -9,7 +9,7 @@ import (
 type controller struct {
 	service services.Service
 
-	bucket         *auth.TokenBucket
+	authLimiter    *auth.RateLimiter
 	messageLimiter *auth.RateLimiter
 }
 
@@ -19,13 +19,14 @@ type Controller interface {
 	LoginUser(w http.ResponseWriter, r *http.Request)
 	RefreshToken(w http.ResponseWriter, r *http.Request)
 	Profile(w http.ResponseWriter, r *http.Request)
-	GetAllUsers(w http.ResponseWriter, r *http.Request)
+	GetNonFriends(w http.ResponseWriter, r *http.Request)
 
 	//message
 	CreateMessage(w http.ResponseWriter, r *http.Request)
 	GetMessages(w http.ResponseWriter, r *http.Request)
 
 	//friends
+	GetMyFriends(w http.ResponseWriter, r *http.Request)
 	IsFriend(w http.ResponseWriter, r *http.Request)
 	SendFriendRequest(w http.ResponseWriter, r *http.Request)
 	GetFriendRequests(w http.ResponseWriter, r *http.Request)
@@ -38,10 +39,10 @@ type Controller interface {
 	HandleConnection(w http.ResponseWriter, r *http.Request)
 }
 
-func New(s services.Service, b *auth.TokenBucket, rl *auth.RateLimiter) Controller {
+func New(s services.Service, authLimiter, messageLimiter *auth.RateLimiter) Controller {
 	return &controller{
 		service:        s,
-		bucket:         b,
-		messageLimiter: rl,
+		authLimiter:    authLimiter,
+		messageLimiter: messageLimiter,
 	}
 }

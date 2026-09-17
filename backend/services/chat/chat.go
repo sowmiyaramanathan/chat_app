@@ -4,6 +4,7 @@ import (
 	e "backend/entities"
 	p "backend/entities/packet"
 	"backend/models"
+	"time"
 )
 
 type chat struct {
@@ -14,7 +15,7 @@ type Chat interface {
 	//user
 	CreateUser(user *e.User) error
 	LoginUser(username, password string) (string, error)
-	GetAllUsers(username string) ([]*p.Users, error)
+	GetNonFriends(userID string, limit int, cursor string) ([]*p.Users, error)
 	GetUserByUsername(username string) (*e.User, error)
 
 	//message
@@ -22,6 +23,7 @@ type Chat interface {
 	GetMyMessages(fromId, toId string, limit int, cursor *p.Cursor) ([]*p.Messages, error)
 
 	//friends
+	GetMyFriends(userID string, limit int, cursor string) ([]*p.Users, error)
 	CheckIsFriend(userAID, userBID string) (bool, error)
 	CreateFriendRequest(userAID, userBID string) error
 	GetFriendRequests(userID string) ([]*p.Requests, error)
@@ -32,7 +34,7 @@ type Chat interface {
 
 	// session
 	CreateSession(session *e.Session) error
-	UpdateSessionRefreshToken(ID, token string) error
+	RotateSessionRefreshToken(ID, currentToken, nextToken string, expiresAt time.Time) (bool, error)
 	GetSessionByRefreshToken(token string) (*e.Session, error)
 }
 

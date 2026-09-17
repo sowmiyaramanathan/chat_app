@@ -51,6 +51,7 @@ func (redis *redispubsub) subscribeOnce(ctx context.Context, handler func(packet
 			continue
 		}
 
+		slog.Info("redis message received", "channel", messageChannel, "event_id", event.EventID, "recipient_id", event.RecipientID)
 		handler(event)
 	}
 }

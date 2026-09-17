@@ -16,5 +16,10 @@ func (redis *redispubsub) PublishMessage(ctx context.Context, event packet.Messa
 		return err
 	}
 
-	return redis.rdClient.Publish(ctx, messageChannel, data).Err()
+	receivers, err := redis.rdClient.Publish(ctx, messageChannel, data).Result()
+	if err != nil {
+		return err
+	}
+	slog.Info("redis message published", "channel", messageChannel, "event_id", event.EventID, "receivers", receivers)
+	return nil
 }

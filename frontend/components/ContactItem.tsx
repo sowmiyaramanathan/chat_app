@@ -10,16 +10,22 @@ export default function ContactItem({
   contact,
   isSelected,
   onSelect,
+  friend,
 }: {
   contact: UserSummary;
   isSelected: boolean;
   onSelect: (contact: UserSummary, friend: boolean) => void;
+  friend?: boolean;
 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleClick = () => {
     if (loading) return;
+    if (friend !== undefined) {
+      onSelect(contact, friend);
+      return;
+    }
     setLoading(true);
     setError(null);
 

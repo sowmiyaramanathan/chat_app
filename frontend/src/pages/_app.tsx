@@ -5,9 +5,10 @@ import { getTheme } from "../../components/theme";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import axios from "axios";
-import { getTokenExpiry, setToken } from "../../token/token";
+import { getTokenExpiry, setToken, setTokens } from "../../token/token";
+import { API_BASE_URL } from "../../components/config";
 
-const ProtectedRoutes = ["/user/profile", "/user/chats", "/user/requests"];
+const ProtectedRoutes = ["/user/profile", "/user/chats", "/user/discover", "/user/requests"];
 
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
@@ -24,6 +25,9 @@ export default function App({ Component, pageProps }: AppProps) {
   }, []);
 
   useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let refreshInFlight: Promise<string> | undefined;
+
     const expireSession = () => {
       setToken(null);
       setPushed(false);
@@ -32,25 +36,72 @@ export default function App({ Component, pageProps }: AppProps) {
       }
     };
 
+    const scheduleRefresh = (token: string) => {
+      if (timer) clearTimeout(timer);
+      const expiry = getTokenExpiry(token);
+      if (expiry === null) {
+        expireSession();
+        return;
+      }
+      const remaining = expiry * 1000 - Date.now();
+      // Use 10% of the remaining token lifetime as the refresh buffer (up to
+      // one minute). A fixed one-minute buffer schedules immediately when
+      // testing with one-minute access tokens, causing a refresh loop.
+      const refreshBuffer = Math.min(60_000, Math.max(1_000, remaining * 0.1));
+      const delay = Math.max(1_000, remaining - refreshBuffer);
+      timer = setTimeout(() => {
+        void refreshAccessToken().catch(expireSession);
+      }, delay);
+    };
+
+    const refreshAccessToken = async (): Promise<string> => {
+      if (refreshInFlight) return refreshInFlight;
+
+      const refreshToken = localStorage.getItem("refreshToken");
+      if (!refreshToken) throw new Error("No refresh token");
+
+      refreshInFlight = axios
+        .post(`${API_BASE_URL}/user/auth/refresh`, { refreshToken })
+        .then((response) => {
+          const { token, refreshToken: nextRefreshToken } = response.data;
+          if (typeof token !== "string" || typeof nextRefreshToken !== "string") {
+            throw new Error("Invalid refresh response");
+          }
+          setTokens(token, nextRefreshToken);
+          scheduleRefresh(token);
+          return token;
+        })
+        .finally(() => {
+          refreshInFlight = undefined;
+        });
+      return refreshInFlight;
+    };
+
     const interceptor = axios.interceptors.response.use(
       (response) => response,
-      (error) => {
-        if (error.response?.status === 401) expireSession();
+      async (error) => {
+        const request = error.config as (typeof error.config & { _retry?: boolean }) | undefined;
+        const isRefreshRequest = request?.url === `${API_BASE_URL}/user/auth/refresh`;
+        if (error.response?.status !== 401 || !request || request._retry || isRefreshRequest) {
+          if (isRefreshRequest) expireSession();
+          return Promise.reject(error);
+        }
+
+        try {
+          request._retry = true;
+          const token = await refreshAccessToken();
+          request.headers = request.headers ?? {};
+          request.headers.Authorization = `Bearer ${token}`;
+          return axios(request);
+        } catch {
+          expireSession();
+        }
         return Promise.reject(error);
       }
     );
 
     const token = localStorage.getItem("token");
-    const expiry = token ? getTokenExpiry(token) : null;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    if (token && expiry !== null) {
-      const delay = expiry * 1000 - Date.now();
-      if (delay <= 0) {
-        expireSession();
-      } else {
-        timer = setTimeout(expireSession, delay);
-      }
-    }
+    if (token) scheduleRefresh(token);
 
     return () => {
       axios.interceptors.response.eject(interceptor);

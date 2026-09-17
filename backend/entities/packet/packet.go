@@ -7,6 +7,11 @@ type Users struct {
 	UserName string
 }
 
+type UsersPage struct {
+	Users    []*Users
+	PageInfo PageInfo
+}
+
 type Messages struct {
 	ID         uint
 	FromUserID string
