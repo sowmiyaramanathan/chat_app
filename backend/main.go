@@ -11,7 +11,7 @@ import (
 
 func main() {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
-	if err := godotenv.Load("../.env"); err == nil {
+	if err := godotenv.Load(); err == nil {
 		slog.Info("environment loaded")
 	}
 	if err := auth.Init(); err != nil {
