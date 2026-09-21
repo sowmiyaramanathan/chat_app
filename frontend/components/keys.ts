@@ -1,8 +1,8 @@
 export const STRINGS = {
   app: {
-    title: "Whisper Chat",
+    title: "Hello - stay connected",
     metaKeywords: "chat message connect friends",
-    name: "whisper",
+    name: "hello",
   },
   nav: {
     profile: "Profile",
@@ -14,7 +14,7 @@ export const STRINGS = {
     ariaLabel: "Main navigation",
   },
   home: {
-    heading: "Whisper Chat",
+    heading: "Hello",
     tagline: "Cozy chats with friends, one message at a time.",
     cta: "Join the Grove",
   },

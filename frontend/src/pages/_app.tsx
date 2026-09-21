@@ -1,3 +1,4 @@
+import Head from "next/head";
 import { Box, CssBaseline, GlobalStyles, ThemeProvider } from "@mui/material";
 import type { AppProps } from "next/app";
 import Navbar from "../../components/Navbar";
@@ -6,9 +7,15 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import axios from "axios";
 import { getTokenExpiry, setToken, setTokens } from "../../token/token";
+import { STRINGS } from "../../components/keys";
 import { API_BASE_URL } from "../../components/config";
 
-const ProtectedRoutes = ["/user/profile", "/user/chats", "/user/discover", "/user/requests"];
+const ProtectedRoutes = [
+  "/user/profile",
+  "/user/chats",
+  "/user/discover",
+  "/user/requests",
+];
 
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
@@ -18,7 +25,7 @@ export default function App({ Component, pageProps }: AppProps) {
   const appTheme = getTheme(mode);
 
   useEffect(() => {
-    const savedMode = localStorage.getItem("whisper-theme");
+    const savedMode = localStorage.getItem("hello-theme");
     if (savedMode === "light" || savedMode === "dark") {
       setMode(savedMode);
     }
@@ -64,7 +71,10 @@ export default function App({ Component, pageProps }: AppProps) {
         .post(`${API_BASE_URL}/user/auth/refresh`, { refreshToken })
         .then((response) => {
           const { token, refreshToken: nextRefreshToken } = response.data;
-          if (typeof token !== "string" || typeof nextRefreshToken !== "string") {
+          if (
+            typeof token !== "string" ||
+            typeof nextRefreshToken !== "string"
+          ) {
             throw new Error("Invalid refresh response");
           }
           setTokens(token, nextRefreshToken);
@@ -80,9 +90,17 @@ export default function App({ Component, pageProps }: AppProps) {
     const interceptor = axios.interceptors.response.use(
       (response) => response,
       async (error) => {
-        const request = error.config as (typeof error.config & { _retry?: boolean }) | undefined;
-        const isRefreshRequest = request?.url === `${API_BASE_URL}/user/auth/refresh`;
-        if (error.response?.status !== 401 || !request || request._retry || isRefreshRequest) {
+        const request = error.config as
+          | (typeof error.config & { _retry?: boolean })
+          | undefined;
+        const isRefreshRequest =
+          request?.url === `${API_BASE_URL}/user/auth/refresh`;
+        if (
+          error.response?.status !== 401 ||
+          !request ||
+          request._retry ||
+          isRefreshRequest
+        ) {
           if (isRefreshRequest) expireSession();
           return Promise.reject(error);
         }
@@ -97,7 +115,7 @@ export default function App({ Component, pageProps }: AppProps) {
           expireSession();
         }
         return Promise.reject(error);
-      }
+      },
     );
 
     const token = localStorage.getItem("token");
@@ -112,7 +130,7 @@ export default function App({ Component, pageProps }: AppProps) {
   const toggleMode = () => {
     setMode((currentMode) => {
       const nextMode = currentMode === "light" ? "dark" : "light";
-      localStorage.setItem("whisper-theme", nextMode);
+      localStorage.setItem("hello-theme", nextMode);
       return nextMode;
     });
   };
@@ -138,52 +156,61 @@ export default function App({ Component, pageProps }: AppProps) {
   }, [router, pushed]);
 
   return (
-    <ThemeProvider theme={appTheme}>
-      <CssBaseline />
-      <GlobalStyles
-        styles={{
-          "@keyframes floatIn": {
-            from: { opacity: 0, transform: "translateY(10px)" },
-            to: { opacity: 1, transform: "translateY(0)" },
-          },
-        }}
-      />
-      <Box
-        sx={{
-          minHeight: "100vh",
-          position: "relative",
-          overflow: "hidden",
-          background: (theme) =>
-            `linear-gradient(140deg, ${theme.palette.background.default} 0%, ${theme.palette.msgBg.light} 100%)`,
-          "&::before": {
-            content: '""',
-            position: "fixed",
-            inset: 0,
-            opacity: 0.18,
-            pointerEvents: "none",
-            backgroundImage: (theme) =>
-              `repeating-linear-gradient(17deg, transparent 0 22px, ${theme.palette.primary.main} 23px 24px, transparent 25px 44px)`,
-            maskImage: "linear-gradient(to bottom, black, transparent 75%)",
-          },
-          "&::after": {
-            content: '""',
-            position: "fixed",
-            width: 360,
-            height: 360,
-            right: -130,
-            bottom: -150,
-            borderRadius: "50%",
-            background: (theme) => theme.palette.secondary.light,
-            opacity: 0.38,
-            pointerEvents: "none",
-          },
-        }}
-      >
-        <Box sx={{ position: "relative", zIndex: 1 }}>
-          <Navbar mode={mode} onToggleMode={toggleMode} />
-          <Component {...pageProps} />
+    <>
+      <Head>
+        <title>{STRINGS.app.title}</title>
+        <meta name="keywords" content={STRINGS.app.metaKeywords} />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link rel="icon" href="/favicon.ico" />
+      </Head>
+
+      <ThemeProvider theme={appTheme}>
+        <CssBaseline />
+        <GlobalStyles
+          styles={{
+            "@keyframes floatIn": {
+              from: { opacity: 0, transform: "translateY(10px)" },
+              to: { opacity: 1, transform: "translateY(0)" },
+            },
+          }}
+        />
+        <Box
+          sx={{
+            minHeight: "100vh",
+            position: "relative",
+            overflow: "hidden",
+            background: (theme) =>
+              `linear-gradient(140deg, ${theme.palette.background.default} 0%, ${theme.palette.msgBg.light} 100%)`,
+            "&::before": {
+              content: '""',
+              position: "fixed",
+              inset: 0,
+              opacity: 0.18,
+              pointerEvents: "none",
+              backgroundImage: (theme) =>
+                `repeating-linear-gradient(17deg, transparent 0 22px, ${theme.palette.primary.main} 23px 24px, transparent 25px 44px)`,
+              maskImage: "linear-gradient(to bottom, black, transparent 75%)",
+            },
+            "&::after": {
+              content: '""',
+              position: "fixed",
+              width: 360,
+              height: 360,
+              right: -130,
+              bottom: -150,
+              borderRadius: "50%",
+              background: (theme) => theme.palette.secondary.light,
+              opacity: 0.38,
+              pointerEvents: "none",
+            },
+          }}
+        >
+          <Box sx={{ position: "relative", zIndex: 1 }}>
+            <Navbar mode={mode} onToggleMode={toggleMode} />
+            <Component {...pageProps} />
+          </Box>
         </Box>
-      </Box>
-    </ThemeProvider>
+      </ThemeProvider>
+    </>
   );
 }
